@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">sheprd mark</title>
+  <desc id="desc">A terminal grid mark for sheprd.</desc>
+  <rect width="128" height="128" rx="24" fill="#0b0f14"/>
+  <rect x="20" y="22" width="88" height="84" rx="10" fill="none" stroke="#66e0c2" stroke-width="6"/>
+  <path d="M34 45h28M34 64h60M34 83h38" stroke="#eef4f8" stroke-width="8" stroke-linecap="round"/>
+  <path d="M78 43l18 21-18 21" fill="none" stroke="#8fb7ff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

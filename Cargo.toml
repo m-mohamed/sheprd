@@ -1,0 +1,42 @@
+[package]
+name = "sheprd"
+version = "0.1.0"
+edition = "2021"
+description = "Smart session manager for Herdr"
+license = "AGPL-3.0-or-later"
+documentation = "https://docs.rs/sheprd"
+keywords = ["terminal", "herdr", "session", "agents", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+include = [
+  "src/**/*",
+  "tests/**/*",
+  "docs/**/*.md",
+  "website/assets/sheprd-mark.svg",
+  "website/**/*.html",
+  "scripts/**/*.sh",
+  ".github/**/*.yml",
+  ".github/pull_request_template.md",
+  ".githooks/*",
+  "README.md",
+  "AGENTS.md",
+  "LICENSE",
+  "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "SKILL.md",
+  "agent-guide.md",
+  "justfile",
+  "Cargo.toml",
+  "Cargo.lock",
+]
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+toml = "0.9"
+
+[dev-dependencies]
+assert_cmd = "2"
+assert_fs = "1"
+predicates = "3"

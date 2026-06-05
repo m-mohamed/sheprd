@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sheprd docs</title>
+    <link rel="icon" href="assets/sheprd-mark.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #07090c;
+        --panel: #10161d;
+        --panel-2: #151d25;
+        --text: #edf3f7;
+        --muted: #9ba9b4;
+        --line: #26323d;
+        --accent: #66e0c2;
+        --accent-2: #8fb7ff;
+        --warn: #e7c46b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        overflow-x: hidden;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: var(--accent);
+      }
+
+      .wrap {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      nav {
+        position: sticky;
+        z-index: 4;
+        top: 0;
+        border-bottom: 1px solid rgba(38, 50, 61, 0.7);
+        background: rgba(7, 9, 12, 0.84);
+        backdrop-filter: blur(12px);
+      }
+
+      nav .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 60px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      .brand img {
+        width: 30px;
+        height: 30px;
+      }
+
+      .links {
+        display: flex;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      header {
+        padding: 92px 0 56px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-size: 76px;
+        line-height: 0.94;
+        letter-spacing: 0;
+        overflow-wrap: break-word;
+      }
+
+      h2 {
+        margin: 0 0 18px;
+        font-size: 38px;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        margin: 0 0 10px;
+        color: var(--accent);
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .subtitle {
+        max-width: 720px;
+        color: var(--muted);
+        font-size: 22px;
+        overflow-wrap: break-word;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 40px;
+        padding: 48px 0 72px;
+        min-width: 0;
+      }
+
+      .layout > * {
+        min-width: 0;
+      }
+
+      .toc {
+        position: sticky;
+        top: 88px;
+        align-self: start;
+        border: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .toc a {
+        display: block;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+      }
+
+      .toc a:last-child {
+        border-bottom: 0;
+      }
+
+      section {
+        padding: 0 0 48px;
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 48px;
+      }
+
+      section:last-child {
+        border-bottom: 0;
+        margin-bottom: 0;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        min-height: 146px;
+        padding: 20px;
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        min-width: 0;
+      }
+
+      .card p,
+      .note {
+        color: var(--muted);
+      }
+
+      pre {
+        margin: 18px 0 0;
+        padding: 18px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: #0c1116;
+        white-space: pre-wrap;
+      }
+
+      .source {
+        color: var(--accent-2);
+      }
+
+      .warn {
+        color: var(--warn);
+      }
+
+      footer {
+        padding: 36px 0;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+      }
+
+      @media (max-width: 860px) {
+        .wrap {
+          width: calc(100% - 32px);
+          max-width: calc(100vw - 32px);
+        }
+
+        nav .wrap,
+        .links {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 8px;
+          padding: 10px 0;
+        }
+
+        .layout,
+        .cards {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 44px;
+        }
+
+        h2 {
+          font-size: 30px;
+        }
+
+        .subtitle {
+          font-size: 18px;
+          max-width: 31ch;
+        }
+
+        .toc {
+          position: static;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img src="assets/sheprd-mark.svg" alt="" />
+          <span>sheprd</span>
+        </a>
+        <div class="links">
+          <a href="index.html">home</a>
+          <a href="#commands">commands</a>
+          <a href="#agents">agents</a>
+          <a href="#launch">launch</a>
+          <a href="https://herdr.dev/docs/">Herdr docs</a>
+        </div>
+      </div>
+    </nav>
+
+    <header>
+      <div class="wrap">
+        <h1>Sheprd docs.</h1>
+        <p class="subtitle">A compact public docs surface for the Herdr companion: start, commands, agent behavior, launch discipline, and source documents.</p>
+      </div>
+    </header>
+
+    <main class="wrap layout">
+      <aside class="toc" aria-label="docs navigation">
+        <a href="#start">Start</a>
+        <a href="#commands">Commands</a>
+        <a href="#agents">Agents</a>
+        <a href="#launch">Launch</a>
+        <a href="#source">Source docs</a>
+      </aside>
+
+      <div>
+        <section id="start">
+          <h2>Start with the boundary.</h2>
+          <div class="cards">
+            <a class="card" href="../docs/product-foundation.md">
+              <h3>Product foundation</h3>
+              <p>Sheprd owns project entry. Herdr owns runtime state.</p>
+            </a>
+            <a class="card" href="../docs/herdr-precedent.md">
+              <h3>Herdr precedent</h3>
+              <p>What Sheprd mirrors from Herdr's public trust signals.</p>
+            </a>
+          </div>
+          <pre>tmux  : sesh
+Herdr : sheprd</pre>
+        </section>
+
+        <section id="commands">
+          <h2>Commands.</h2>
+          <p class="note">The boring path is project selection into a Herdr workspace. Recipes and JSON are explicit modes.</p>
+          <pre>sheprd init --print
+sheprd doctor
+sheprd list
+sheprd connect my-project
+sheprd connect my-project --recipe agent-dev
+sheprd connect my-project --json
+sheprd connect my-project --no-attach</pre>
+          <p class="note source"><a href="../docs/commands.md">Full command reference</a></p>
+        </section>
+
+        <section id="agents">
+          <h2>Agents.</h2>
+          <div class="cards">
+            <a class="card" href="../SKILL.md">
+              <h3>Skill contract</h3>
+              <p>How agents should use Sheprd inside a repository.</p>
+            </a>
+            <a class="card" href="../agent-guide.md">
+              <h3>Agent guide</h3>
+              <p>How agents should teach setup and troubleshooting to a human.</p>
+            </a>
+          </div>
+          <pre>sheprd doctor --json
+sheprd list --json
+sheprd connect my-project --json</pre>
+        </section>
+
+        <section id="launch">
+          <h2>Launch discipline.</h2>
+          <p class="note">This repo stays private until the maintainer opens the final ship gate. No tags, releases, or public visibility changes during private iteration.</p>
+          <div class="cards">
+            <a class="card" href="../docs/open-source-readiness.md">
+              <h3>Readiness</h3>
+              <p>Gap scorecard against Herdr-quality public OSS.</p>
+            </a>
+            <a class="card" href="../docs/public-launch.md">
+              <h3>Public launch</h3>
+              <p>The final gate before repository visibility, tags, and release artifacts.</p>
+            </a>
+          </div>
+          <p class="note warn">Do not run release steps before the explicit final ship gate.</p>
+        </section>
+
+        <section id="source">
+          <h2>Source docs.</h2>
+          <div class="cards">
+            <a class="card" href="../docs/README.md">
+              <h3>Markdown index</h3>
+              <p>The source-of-truth docs map committed with the repo.</p>
+            </a>
+            <a class="card" href="../docs/prelaunch-chaos.md">
+              <h3>Prelaunch chaos</h3>
+              <p>Executable and manual checks before a public root commit.</p>
+            </a>
+            <a class="card" href="../docs/release.md">
+              <h3>Release process</h3>
+              <p>SemVer, release notes, artifacts, and final gate discipline.</p>
+            </a>
+            <a class="card" href="../CONTRIBUTING.md">
+              <h3>Contributing</h3>
+              <p>AI-use rule, checks, boundaries, and contribution flow.</p>
+            </a>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">Herdr owns the runtime. sheprd owns the way in.</div>
+    </footer>
+  </body>
+</html>

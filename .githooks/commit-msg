@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+set -eu
+
+subject="$(head -n 1 "$1")"
+
+case "$subject" in
+  "Initial commit") exit 0 ;;
+esac
+
+if ! printf '%s\n' "$subject" | grep -Eq '^(feat|fix|docs|test|refactor|perf|build|ci|chore|release)(\([a-z0-9._-]+\))?: [a-z0-9]'; then
+  printf '%s\n' "error: commit subject must be conventional, lowercase, and descriptive" >&2
+  printf '%s\n' "example: docs: clarify Herdr boundary" >&2
+  exit 1
+fi
