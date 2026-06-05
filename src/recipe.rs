@@ -32,6 +32,28 @@ impl fmt::Display for Agent {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize, ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+pub enum RecipeName {
+    AgentDev,
+}
+
+impl RecipeName {
+    pub fn build(self, agent: Agent) -> Recipe {
+        match self {
+            Self::AgentDev => Recipe::agent_dev(agent),
+        }
+    }
+}
+
+impl fmt::Display for RecipeName {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AgentDev => formatter.write_str("agent-dev"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct Recipe {
     pub name: String,

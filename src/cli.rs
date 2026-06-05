@@ -1,11 +1,11 @@
-use crate::recipe::Agent;
+use crate::recipe::{Agent, RecipeName};
 use clap::{Parser, Subcommand};
 
 #[derive(Clone, Debug, Parser)]
 #[command(name = "sheprd")]
 #[command(version, about = "Smart session manager for Herdr")]
 #[command(
-    long_about = "sheprd is a smart session manager for Herdr. It finds the project you mean, chooses the agent you want, applies a small recipe, and lets Herdr own the runtime."
+    long_about = "sheprd is a smart session manager for Herdr. It finds the project you mean, chooses the agent lane you want, connects to the matching Herdr workspace, and can apply explicit recipes when you ask for them."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -34,6 +34,10 @@ pub enum Command {
     Connect {
         /// Project name from `sheprd list`, or a path to a Git repository.
         project: String,
+
+        /// Optional workspace recipe to apply when creating a new Herdr workspace.
+        #[arg(long, value_enum)]
+        recipe: Option<RecipeName>,
     },
 
     /// Show built-in workspace recipes.

@@ -9,7 +9,7 @@ use clap::{CommandFactory, Parser};
 use cli::{Cli, Command};
 use config::Config;
 use error::Result;
-use recipe::{Agent, Recipe};
+use recipe::{Agent, Recipe, RecipeName};
 use serde::Serialize;
 use std::process::ExitCode;
 
@@ -39,7 +39,7 @@ fn run() -> Result<ExitCode> {
 
     match command {
         Command::List => list(&config, cli.json),
-        Command::Connect { project } => connect(&config, &project, cli.no_attach),
+        Command::Connect { project, recipe } => connect(&config, &project, recipe, cli.no_attach),
         Command::Recipes => recipes(&config, cli.json),
         Command::Doctor => doctor(&config, cli.json),
         Command::ShowConfig => show_config(&config, cli.json),
@@ -92,22 +92,27 @@ fn list(config: &Config, json: bool) -> Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn connect(config: &Config, selector: &str, no_attach: bool) -> Result<ExitCode> {
+fn connect(
+    config: &Config,
+    selector: &str,
+    recipe_name: Option<RecipeName>,
+    no_attach: bool,
+) -> Result<ExitCode> {
     let project = project::resolve(config, selector)?;
-    let recipe = Recipe::agent_dev(config.default_agent);
-    herdr::connect(&project, &recipe, !no_attach)?;
+    let recipe = recipe_name.map(|name| name.build(config.default_agent));
+    herdr::connect(&project, config.default_agent, recipe.as_ref(), !no_attach)?;
     Ok(ExitCode::SUCCESS)
 }
 
 #[derive(Serialize)]
 struct RecipesOutput {
-    default: String,
+    default: Option<String>,
     recipes: Vec<Recipe>,
 }
 
 fn recipes(config: &Config, json: bool) -> Result<ExitCode> {
     let output = RecipesOutput {
-        default: "agent-dev".into(),
+        default: None,
         recipes: vec![Recipe::agent_dev(config.default_agent)],
     };
     if json {
@@ -115,7 +120,7 @@ fn recipes(config: &Config, json: bool) -> Result<ExitCode> {
     } else {
         println!("recipes:");
         for recipe in &output.recipes {
-            let marker = if recipe.name == output.default {
+            let marker = if output.default.as_deref() == Some(&recipe.name) {
                 "*"
             } else {
                 "-"

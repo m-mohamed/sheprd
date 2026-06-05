@@ -61,9 +61,14 @@ pub fn workspace_labels() -> Result<BTreeSet<String>> {
         .collect())
 }
 
-pub fn connect(project: &Project, recipe: &Recipe, attach: bool) -> Result<()> {
+pub fn connect(
+    project: &Project,
+    agent: Agent,
+    recipe: Option<&Recipe>,
+    attach: bool,
+) -> Result<()> {
     ensure_server()?;
-    let label = project.workspace_label(recipe.agent);
+    let label = project.workspace_label(agent);
     if let Some(workspace) = workspaces()?
         .into_iter()
         .find(|workspace| workspace.label == label)
@@ -74,7 +79,9 @@ pub fn connect(project: &Project, recipe: &Recipe, attach: bool) -> Result<()> {
     }
 
     let created = create_workspace(project.path.as_path(), &label)?;
-    apply_agent_dev(project.path.as_path(), recipe.agent, &created)?;
+    if let Some(recipe) = recipe {
+        apply_agent_dev(project.path.as_path(), recipe.agent, &created)?;
+    }
     run_herdr(["workspace", "focus", &created.workspace.workspace_id])?;
     maybe_attach(attach)?;
     Ok(())

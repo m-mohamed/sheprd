@@ -5,8 +5,9 @@
 Herdr owns the terminal runtime: sessions, workspaces, tabs, panes, persistence,
 agent state, remotes, keybindings, integrations, and attach/detach.
 
-`sheprd` owns the human entry point: find the project, choose the agent, apply a
-small workspace recipe, and connect to the matching Herdr workspace.
+`sheprd` owns the human entry point: find the project, choose the agent lane,
+and connect to the matching Herdr workspace. Optional recipes can shape a fresh
+workspace when you ask for them.
 
 ```text
 tmux  : sesh
@@ -27,6 +28,7 @@ install -m 755 target/release/sheprd ~/.local/bin/sheprd
 ```bash
 sheprd list
 sheprd connect my-project
+sheprd connect my-project --recipe agent-dev
 sheprd open my-project
 sheprd switch my-project
 sheprd recipes
@@ -34,19 +36,26 @@ sheprd doctor
 sheprd show-config
 ```
 
-`connect`, `open`, and `switch` currently share behavior: create or focus the
-Herdr workspace for a project. The names are all present because the product is
-a session manager, not just a launcher.
+`connect`, `open`, and `switch` share the same baseline behavior: create or
+focus the Herdr workspace for a project. They do not force panes, tabs, or
+commands by default.
 
-## Default Recipe
+## Recipes
 
-The first built-in recipe is `agent-dev`:
+The first built-in opt-in recipe is `agent-dev`:
 
 - `code`: `nvim`, selected agent, shell
 - `git`: `lazygit`, shell
 
-The recipe is intentionally small. Herdr remains the place for manual pane work,
-session navigation, remotes, and agent state.
+Use it when you want `sheprd` to shape a fresh workspace:
+
+```bash
+sheprd connect my-project --recipe agent-dev
+```
+
+Recipes are intentionally small. Herdr remains the place for manual pane work,
+session navigation, remotes, and agent state. This keeps `sheprd` closer to a
+session selector like `sesh`, not a personal layout that everyone has to accept.
 
 ## Config
 

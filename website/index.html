@@ -256,7 +256,7 @@
         <div class="terminal" aria-label="sheprd terminal mock">
           <div class="bar">
             <span>Herdr workspace</span>
-            <span>agent-dev</span>
+            <span>recipe optional</span>
           </div>
           <div class="screen">
             <div class="side">
@@ -271,13 +271,16 @@
     frontier-lab       ~/code/frontier-lab
 
 <span class="cyan">&gt; sheprd recipes</span>
-* agent-dev
+- agent-dev
     code -> nvim | codex | shell
     git  -> lazygit | shell
 
 <span class="cyan">&gt; sheprd connect corvus</span>
 focused Herdr workspace
-agent: <span class="blue">codex</span></pre>
+agent: <span class="blue">codex</span>
+
+<span class="cyan">&gt; sheprd connect corvus --recipe agent-dev</span>
+created coding layout</pre>
             </div>
           </div>
         </div>

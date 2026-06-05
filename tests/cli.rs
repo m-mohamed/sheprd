@@ -67,7 +67,30 @@ fn connect_existing_workspace_focuses_without_create() {
 }
 
 #[test]
-fn connect_new_workspace_applies_agent_dev_recipe() {
+fn connect_new_workspace_creates_plain_workspace_by_default() {
+    let fixture = Fixture::new();
+    fixture.write_config("hermes");
+    fixture.git_repo("frontier-lab");
+    fixture.fake_tool("hermes");
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["connect", "frontier-lab", "--no-attach"])
+        .assert()
+        .success();
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("workspace create"));
+    assert!(log.contains("workspace focus w_new"));
+    assert!(!log.contains("tab rename"));
+    assert!(!log.contains("pane run"));
+    assert!(!log.contains("tab create"));
+}
+
+#[test]
+fn connect_new_workspace_applies_agent_dev_recipe_when_requested() {
     let fixture = Fixture::new();
     fixture.write_config("hermes");
     fixture.git_repo("frontier-lab");
@@ -79,7 +102,13 @@ fn connect_new_workspace_applies_agent_dev_recipe() {
     Command::cargo_bin("sheprd")
         .expect("binary")
         .envs(fixture.env())
-        .args(["connect", "frontier-lab", "--no-attach"])
+        .args([
+            "connect",
+            "frontier-lab",
+            "--recipe",
+            "agent-dev",
+            "--no-attach",
+        ])
         .assert()
         .success();
 
