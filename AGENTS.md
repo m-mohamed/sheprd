@@ -7,7 +7,10 @@ Guidance for agents working in this repository.
 - Herdr owns runtime state, panes, tabs, sessions, remotes, keybindings,
   integrations, persistence, and agent status.
 - `sheprd` owns project discovery, project selection, agent selection, preflight
-  checks, and small startup recipes.
+  checks, and optional sample recipes.
+
+Sample recipes are examples, not policy. Do not make one user's personal layout
+the default behavior for every user.
 
 Use Herdr CLI wrappers before raw socket work. Add raw socket code only when
 `sheprd` becomes a real protocol client or event subscriber.

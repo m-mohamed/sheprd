@@ -118,7 +118,7 @@ fn recipes(config: &Config, json: bool) -> Result<ExitCode> {
     if json {
         print_json(&output)?;
     } else {
-        println!("recipes:");
+        println!("sample recipes:");
         for recipe in &output.recipes {
             let marker = if output.default.as_deref() == Some(&recipe.name) {
                 "*"

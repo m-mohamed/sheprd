@@ -26,14 +26,25 @@ fn recipes_emit_agent_dev() {
 }
 
 #[test]
+fn recipes_text_marks_agent_dev_as_sample() {
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .arg("recipes")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("sample recipes:"))
+        .stdout(predicate::str::contains("Sample editor"));
+}
+
+#[test]
 fn list_marks_running_workspace() {
     let fixture = Fixture::new();
     fixture.write_config("codex");
-    fixture.git_repo("frontier-lab");
+    fixture.git_repo("sample-app");
     fixture.fake_tool("nvim");
     fixture.fake_tool("lazygit");
     fixture.fake_tool("codex");
-    fixture.fake_herdr(Some("frontier-lab-codex"));
+    fixture.fake_herdr(Some("sample-app-codex"));
 
     Command::cargo_bin("sheprd")
         .expect("binary")
@@ -48,16 +59,16 @@ fn list_marks_running_workspace() {
 fn connect_existing_workspace_focuses_without_create() {
     let fixture = Fixture::new();
     fixture.write_config("codex");
-    fixture.git_repo("frontier-lab");
+    fixture.git_repo("sample-app");
     fixture.fake_tool("nvim");
     fixture.fake_tool("lazygit");
     fixture.fake_tool("codex");
-    fixture.fake_herdr(Some("frontier-lab-codex"));
+    fixture.fake_herdr(Some("sample-app-codex"));
 
     Command::cargo_bin("sheprd")
         .expect("binary")
         .envs(fixture.env())
-        .args(["connect", "frontier-lab", "--no-attach"])
+        .args(["connect", "sample-app", "--no-attach"])
         .assert()
         .success();
 
@@ -70,14 +81,14 @@ fn connect_existing_workspace_focuses_without_create() {
 fn connect_new_workspace_creates_plain_workspace_by_default() {
     let fixture = Fixture::new();
     fixture.write_config("hermes");
-    fixture.git_repo("frontier-lab");
+    fixture.git_repo("sample-app");
     fixture.fake_tool("hermes");
     fixture.fake_herdr(None);
 
     Command::cargo_bin("sheprd")
         .expect("binary")
         .envs(fixture.env())
-        .args(["connect", "frontier-lab", "--no-attach"])
+        .args(["connect", "sample-app", "--no-attach"])
         .assert()
         .success();
 
@@ -93,7 +104,7 @@ fn connect_new_workspace_creates_plain_workspace_by_default() {
 fn connect_new_workspace_applies_agent_dev_recipe_when_requested() {
     let fixture = Fixture::new();
     fixture.write_config("hermes");
-    fixture.git_repo("frontier-lab");
+    fixture.git_repo("sample-app");
     fixture.fake_tool("nvim");
     fixture.fake_tool("lazygit");
     fixture.fake_tool("hermes");
@@ -104,7 +115,7 @@ fn connect_new_workspace_applies_agent_dev_recipe_when_requested() {
         .envs(fixture.env())
         .args([
             "connect",
-            "frontier-lab",
+            "sample-app",
             "--recipe",
             "agent-dev",
             "--no-attach",
@@ -193,7 +204,7 @@ case "$1 $2" in
     fi
     ;;
   "workspace create")
-    printf '{{"id":"x","result":{{"workspace":{{"workspace_id":"w_new","label":"frontier-lab-hermes"}},"root_pane":{{"pane_id":"w_new-1","tab_id":"w_new:1"}}}}}}'
+    printf '{{"id":"x","result":{{"workspace":{{"workspace_id":"w_new","label":"sample-app-hermes"}},"root_pane":{{"pane_id":"w_new-1","tab_id":"w_new:1"}}}}}}'
     ;;
   "pane split")
     if [ "$5" = "right" ]; then pane="w_new-2"; elif grep -q 'tab create' "$HERDR_TEST_LOG"; then pane="w_new-5"; else pane="w_new-3"; fi

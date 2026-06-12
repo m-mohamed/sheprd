@@ -4,9 +4,20 @@ version = "0.1.0"
 edition = "2021"
 description = "Smart session manager for Herdr"
 license = "AGPL-3.0-or-later"
+documentation = "https://docs.rs/sheprd"
 keywords = ["terminal", "herdr", "session", "agents", "cli"]
 categories = ["command-line-utilities", "development-tools"]
-include = ["src/**/*", "README.md", "LICENSE", "Cargo.toml"]
+include = [
+  "src/**/*",
+  "tests/**/*",
+  "README.md",
+  "LICENSE",
+  "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "SKILL.md",
+  "Cargo.toml",
+  "Cargo.lock",
+]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }

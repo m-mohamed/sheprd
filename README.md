@@ -6,8 +6,8 @@ Herdr owns the terminal runtime: sessions, workspaces, tabs, panes, persistence,
 agent state, remotes, keybindings, integrations, and attach/detach.
 
 `sheprd` owns the human entry point: find the project, choose the agent lane,
-and connect to the matching Herdr workspace. Optional recipes can shape a fresh
-workspace when you ask for them.
+and connect to the matching Herdr workspace. Optional sample recipes can shape a
+fresh workspace when you ask for them.
 
 ```text
 tmux  : sesh
@@ -19,9 +19,10 @@ Herdr : sheprd
 `sheprd` is source-first while the project is young:
 
 ```bash
-cargo build --release
-install -m 755 target/release/sheprd ~/.local/bin/sheprd
+scripts/install-local.sh
 ```
+
+Set `SHEPRD_INSTALL_DIR` to install somewhere other than `~/.local/bin`.
 
 ## Commands
 
@@ -40,22 +41,23 @@ sheprd show-config
 focus the Herdr workspace for a project. They do not force panes, tabs, or
 commands by default.
 
-## Recipes
+## Sample Recipes
 
-The first built-in opt-in recipe is `agent-dev`:
+The first bundled sample recipe is `agent-dev`:
 
 - `code`: `nvim`, selected agent, shell
 - `git`: `lazygit`, shell
 
-Use it when you want `sheprd` to shape a fresh workspace:
+Use it when you want `sheprd` to shape a fresh workspace as a starter layout:
 
 ```bash
 sheprd connect my-project --recipe agent-dev
 ```
 
-Recipes are intentionally small. Herdr remains the place for manual pane work,
-session navigation, remotes, and agent state. This keeps `sheprd` closer to a
-session selector like `sesh`, not a personal layout that everyone has to accept.
+Sample recipes are intentionally small and optional. Herdr remains the place for
+manual pane work, session navigation, remotes, and agent state. This keeps
+`sheprd` closer to a session selector like `sesh`, not a personal layout that
+everyone has to accept.
 
 ## Config
 
@@ -109,3 +111,8 @@ cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 ```
+
+Before a public release, run the prelaunch checklist in
+[`docs/prelaunch-chaos.md`](docs/prelaunch-chaos.md). The open-source readiness
+scorecard lives in [`docs/open-source-readiness.md`](docs/open-source-readiness.md),
+and the publish checklist lives in [`docs/public-launch.md`](docs/public-launch.md).

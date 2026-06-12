@@ -13,6 +13,7 @@ What we mirror:
 - `LICENSE`;
 - `just ci`;
 - GitHub Actions for fmt, clippy, and tests;
+- issue and discussion templates;
 - docs that explain product boundaries.
 
 What we do not mirror yet:
@@ -23,6 +24,7 @@ What we do not mirror yet:
 - installer script;
 - raw socket event streams;
 - Ratatui picker.
+- approval-gate automation for outside contributors.
 
 Those come after the CLI is stable and there are real public users.
 

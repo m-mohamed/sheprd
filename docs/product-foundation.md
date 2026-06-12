@@ -18,8 +18,8 @@ sheprd doctor
 sheprd show-config
 ```
 
-Plain `connect` creates or focuses a workspace. Recipes are opt-in so `sheprd`
-stays closer to `sesh` than to a personal layout manager.
+Plain `connect` creates or focuses a workspace. Sample recipes are opt-in so
+`sheprd` stays closer to `sesh` than to a personal layout manager.
 
 Future work should add explicit project entries, recent ranking, recipe config,
 and an optional Ratatui picker only after the CLI behavior is boringly stable.

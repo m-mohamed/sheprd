@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a reproducible sheprd bug.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please keep this focused and reproducible.
+  - type: textarea
+    id: current
+    attributes:
+      label: Current behavior
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect sheprd to do?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: The shortest command sequence that shows the problem.
+      placeholder: |
+        sheprd doctor
+        sheprd connect my-project --no-attach
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include sheprd, Herdr, OS, shell, terminal, and install method.
+      placeholder: |
+        sheprd --version:
+        herdr --version:
+        OS:
+        shell:
+        terminal:
+        install method:
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What workflow does this block?
+    validations:
+      required: true

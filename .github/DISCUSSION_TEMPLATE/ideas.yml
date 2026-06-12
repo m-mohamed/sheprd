@@ -1,0 +1,31 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for product ideas, workflow proposals, and integrations.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What Herdr workflow problem should sheprd help with?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should sheprd do?
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Herdr boundary
+      description: What should remain owned by Herdr?
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: Commands, screenshots, or similar tools that clarify the idea.

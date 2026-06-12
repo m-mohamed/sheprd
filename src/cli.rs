@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 #[command(name = "sheprd")]
 #[command(version, about = "Smart session manager for Herdr")]
 #[command(
-    long_about = "sheprd is a smart session manager for Herdr. It finds the project you mean, chooses the agent lane you want, connects to the matching Herdr workspace, and can apply explicit recipes when you ask for them."
+    long_about = "sheprd is a smart session manager for Herdr. It finds the project you mean, chooses the agent lane you want, connects to the matching Herdr workspace, and can apply explicit sample recipes when you ask for them."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -35,12 +35,12 @@ pub enum Command {
         /// Project name from `sheprd list`, or a path to a Git repository.
         project: String,
 
-        /// Optional workspace recipe to apply when creating a new Herdr workspace.
+        /// Optional sample recipe to apply when creating a new Herdr workspace.
         #[arg(long, value_enum)]
         recipe: Option<RecipeName>,
     },
 
-    /// Show built-in workspace recipes.
+    /// Show sample workspace recipes.
     Recipes,
 
     /// Check Herdr, config, and required executables.

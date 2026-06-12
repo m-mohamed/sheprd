@@ -31,10 +31,18 @@ Herdr owns runtime state:
 - project selection
 - agent selection
 - preflight checks
-- small startup recipes
+- optional sample recipes
 
 If a change turns `sheprd` into a terminal multiplexer, layout engine, or Herdr
 replacement, start with a discussion first.
+
+## Issues And Discussions
+
+Use issues for reproducible bugs with a clear current behavior, expected
+behavior, reproduction, environment, and impact.
+
+Use discussions for ideas, product direction, workflow questions, integration
+requests, and anything that would expand `sheprd` beyond the entry layer.
 
 ## Checks
 

@@ -256,31 +256,31 @@
         <div class="terminal" aria-label="sheprd terminal mock">
           <div class="bar">
             <span>Herdr workspace</span>
-            <span>recipe optional</span>
+            <span>sample recipe available</span>
           </div>
           <div class="screen">
             <div class="side">
               <strong>workspaces</strong>
-              <div class="space active">* corvus</div>
-              <div class="space">- frontier-lab</div>
-              <div class="space">- avaza-os</div>
+              <div class="space active">* api-server</div>
+              <div class="space">- docs-site</div>
+              <div class="space">- mobile-app</div>
             </div>
             <div class="pane">
               <pre><span class="cyan">&gt; sheprd list</span>
-[*] corvus             ~/code/corvus
-    frontier-lab       ~/code/frontier-lab
+[*] api-server         ~/code/api-server
+    docs-site          ~/code/docs-site
 
 <span class="cyan">&gt; sheprd recipes</span>
 - agent-dev
     code -> nvim | codex | shell
     git  -> lazygit | shell
 
-<span class="cyan">&gt; sheprd connect corvus</span>
+<span class="cyan">&gt; sheprd connect api-server</span>
 focused Herdr workspace
 agent: <span class="blue">codex</span>
 
-<span class="cyan">&gt; sheprd connect corvus --recipe agent-dev</span>
-created coding layout</pre>
+<span class="cyan">&gt; sheprd connect api-server --recipe agent-dev</span>
+applied sample recipe</pre>
             </div>
           </div>
         </div>

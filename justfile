@@ -2,6 +2,8 @@
 
 ci: lint test
 
+check: ci chaos-smoke package
+
 install-hooks:
     git config core.hooksPath .githooks
     chmod +x .githooks/pre-commit .githooks/commit-msg
@@ -17,5 +19,18 @@ test:
 build:
     cargo build --release --locked
 
-install-local: build
-    install -m 755 target/release/sheprd ~/.local/bin/sheprd
+chaos-smoke: build
+    target/release/sheprd --help
+    target/release/sheprd connect --help
+    target/release/sheprd recipes
+    target/release/sheprd recipes --json
+    target/release/sheprd show-config
+
+package:
+    cargo package --allow-dirty
+
+install-local:
+    scripts/install-local.sh
+
+release-notes version:
+    scripts/extract-release-notes.sh "{{version}}" RELEASE_NOTES.md

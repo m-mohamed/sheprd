@@ -72,7 +72,7 @@ impl Recipe {
     pub fn agent_dev(agent: Agent) -> Self {
         Self {
             name: "agent-dev".into(),
-            description: "Editor, selected agent, shell, git, and review shell.".into(),
+            description: "Sample editor, selected agent, shell, git, and review shell.".into(),
             agent,
             tabs: vec![
                 RecipeTab {
