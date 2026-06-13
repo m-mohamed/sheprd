@@ -41,6 +41,19 @@ pub fn resolve(config: &Config, selector: &str) -> Result<Project> {
 pub fn discover(config: &Config) -> Result<Vec<Project>> {
     let mut seen = BTreeSet::new();
     let mut projects = Vec::new();
+    for configured in &config.projects {
+        if !configured.path.exists() {
+            continue;
+        }
+        let path = configured.path.canonicalize()?;
+        if seen.insert(path.clone()) {
+            projects.push(Project {
+                name: configured.name.clone(),
+                path,
+            });
+        }
+    }
+
     for root in &config.roots {
         if !root.exists() {
             continue;

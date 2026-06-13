@@ -70,6 +70,10 @@ roots = [
   "~/src",
 ]
 
+[[projects]]
+name = "my-project"
+path = "~/workspace/startups/my-project-main-worktree"
+
 ignore = [
   ".git",
   ".direnv",
@@ -82,6 +86,11 @@ ignore = [
 max_depth = 6
 default_agent = "codex"
 ```
+
+Use `[[projects]]` entries when a project name should point at a specific path
+that would otherwise discover under the wrong directory name. Explicit projects
+keep the configured `name` while still using the configured `path` as the Herdr
+workspace cwd.
 
 Supported agents are `pi`, `droid`, `claude`, `codex`, `hermes`, and
 `opencode`.

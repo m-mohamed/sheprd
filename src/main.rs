@@ -209,9 +209,16 @@ struct ConfigOutput {
     path: String,
     exists: bool,
     roots: Vec<String>,
+    projects: Vec<ProjectConfigRow>,
     ignore: Vec<String>,
     max_depth: usize,
     default_agent: Agent,
+}
+
+#[derive(Serialize)]
+struct ProjectConfigRow {
+    name: String,
+    path: String,
 }
 
 fn show_config(config: &Config, json: bool) -> Result<ExitCode> {
@@ -222,6 +229,14 @@ fn show_config(config: &Config, json: bool) -> Result<ExitCode> {
             .roots
             .iter()
             .map(|path| path.display().to_string())
+            .collect(),
+        projects: config
+            .projects
+            .iter()
+            .map(|project| ProjectConfigRow {
+                name: project.name.clone(),
+                path: project.path.display().to_string(),
+            })
             .collect(),
         ignore: config.ignore.clone(),
         max_depth: config.max_depth,
@@ -239,6 +254,12 @@ fn show_config(config: &Config, json: bool) -> Result<ExitCode> {
         println!("roots:");
         for root in &output.roots {
             println!("  - {root}");
+        }
+        if !output.projects.is_empty() {
+            println!("projects:");
+            for project in &output.projects {
+                println!("  - {} -> {}", project.name, project.path);
+            }
         }
     }
     Ok(ExitCode::SUCCESS)

@@ -78,6 +78,37 @@ fn connect_existing_workspace_focuses_without_create() {
 }
 
 #[test]
+fn explicit_projects_keep_configured_name_for_custom_path() {
+    let fixture = Fixture::new();
+    fixture.write_config_with_project("codex", "corvus", "corvus-pride-month-logo");
+    fixture.git_repo("corvus-pride-month-logo");
+    fixture.fake_tool("nvim");
+    fixture.fake_tool("lazygit");
+    fixture.fake_tool("codex");
+    fixture.fake_herdr(Some("corvus-codex"));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["list", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"name\": \"corvus\""))
+        .stdout(predicate::str::contains("corvus-pride-month-logo"))
+        .stdout(predicate::str::contains("\"workspace\": \"corvus-codex\""));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["connect", "corvus", "--no-attach"])
+        .assert()
+        .success();
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("workspace focus w_existing"));
+}
+
+#[test]
 fn connect_new_workspace_creates_plain_workspace_by_default() {
     let fixture = Fixture::new();
     fixture.write_config("hermes");
@@ -174,6 +205,20 @@ impl Fixture {
                 "roots = [\"{}\"]\ndefault_agent = \"{}\"\n",
                 self.root.display(),
                 agent
+            ),
+        )
+        .expect("config");
+    }
+
+    fn write_config_with_project(&self, agent: &str, name: &str, path_name: &str) {
+        std::fs::write(
+            self.home.path().join("config.toml"),
+            format!(
+                "roots = [\"{}\"]\ndefault_agent = \"{}\"\n[[projects]]\nname = \"{}\"\npath = \"{}\"\n",
+                self.root.display(),
+                agent,
+                name,
+                self.root.join(path_name).display()
             ),
         )
         .expect("config");
