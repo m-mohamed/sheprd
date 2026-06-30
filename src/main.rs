@@ -160,13 +160,15 @@ fn doctor(config: &Config, json: bool) -> Result<ExitCode> {
             name: "herdr_server".into(),
             ok: status.running && status.compatible != Some(false),
             detail: format!(
-                "status={} version={} compatible={}",
+                "status={} version={} protocol={} compatible={} socket={}",
                 if status.running { "running" } else { "stopped" },
                 status.version.unwrap_or_else(|| "unknown".into()),
+                status.protocol.unwrap_or_else(|| "unknown".into()),
                 status
                     .compatible
                     .map(|value| value.to_string())
-                    .unwrap_or_else(|| "unknown".into())
+                    .unwrap_or_else(|| "unknown".into()),
+                status.socket.unwrap_or_else(|| "unknown".into())
             ),
         }),
         Ok(None) => checks.push(Check {

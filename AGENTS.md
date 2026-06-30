@@ -15,6 +15,11 @@ the default behavior for every user.
 Use Herdr CLI wrappers before raw socket work. Add raw socket code only when
 `sheprd` becomes a real protocol client or event subscriber.
 
+Herdr's native runtime API is now a public direction for clients. Keep `sheprd`
+small and public-project-ready: use Herdr CLI wrappers while they cover the
+workflow, surface Herdr protocol/socket readiness in `doctor`, and require an
+explicit compatibility gate before adding raw socket code.
+
 ## Validation
 
 ```bash

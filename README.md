@@ -9,6 +9,11 @@ agent state, remotes, keybindings, integrations, and attach/detach.
 and connect to the matching Herdr workspace. Optional sample recipes can shape a
 fresh workspace when you ask for them.
 
+This project is designed to be a small public companion to Herdr. Herdr is the
+benchmark for public quality: clear docs, explicit boundaries, agent guidance,
+reproducible checks, and release discipline. `sheprd` should earn trust by being
+boring, legible, and precise about what it does not own.
+
 ```text
 tmux  : sesh
 Herdr : sheprd
@@ -106,6 +111,12 @@ Supported agents are `pi`, `droid`, `claude`, `codex`, `hermes`, and
 
 It does not store Herdr workspace, tab, or pane IDs. IDs are live runtime state,
 so `sheprd` reads them from Herdr command responses each time.
+
+Herdr's native runtime API makes future non-TUI clients possible. `sheprd`
+should stay a small public companion: prefer the CLI wrappers while they cover
+project connection, and only add raw socket code for protocol-client features
+such as dashboards, mobile clients, or event subscriptions. Any socket path must
+first check Herdr status, protocol compatibility, and socket location.
 
 ## Development
 

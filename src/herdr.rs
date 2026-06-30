@@ -13,7 +13,9 @@ use std::time::Duration;
 pub struct ServerStatus {
     pub running: bool,
     pub version: Option<String>,
+    pub protocol: Option<String>,
     pub compatible: Option<bool>,
+    pub socket: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -183,7 +185,9 @@ fn parse_server_status(text: &str) -> ServerStatus {
     let mut status = ServerStatus {
         running: false,
         version: None,
+        protocol: None,
         compatible: None,
+        socket: None,
     };
     for line in text.lines() {
         let Some((key, value)) = line.split_once(':') else {
@@ -193,7 +197,9 @@ fn parse_server_status(text: &str) -> ServerStatus {
         match key.trim() {
             "status" => status.running = value == "running",
             "version" => status.version = Some(value.into()),
+            "protocol" => status.protocol = Some(value.into()),
             "compatible" => status.compatible = Some(value == "yes" || value == "true"),
+            "socket" => status.socket = Some(value.into()),
             _ => {}
         }
     }

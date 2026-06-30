@@ -7,6 +7,12 @@ The goal is not to clone Herdr. The goal is to meet the same standard of clarity
 clear product boundary, reproducible checks, contributor expectations, release
 discipline, and documentation that matches the shipped behavior.
 
+For Sheprd's public launch, Herdr is the closest benchmark. It has the same
+terminal-agent audience and roughly the same stack shape, so the useful lesson is
+not to copy features; it is to copy public trust signals: direct README, focused
+docs, agent instructions, contribution rules, release discipline, install paths,
+and discussion channels.
+
 ## Herdr Baseline
 
 Herdr checks these boxes:
@@ -30,7 +36,7 @@ Herdr checks these boxes:
 | Release automation | Multi-platform builds and GitHub releases | Tag workflow added, unproven until public remote |
 | Packaging | Install script, Homebrew, mise, Nix | Source installer added; Homebrew/mise/Nix deferred |
 | Docs site | Polished site and versioned docs | One-page site only |
-| Protocol/client depth | Socket API and agent skill | Agent skill present; socket client deferred |
+| Protocol/client depth | Socket API, protocol readiness, and agent skill | Agent skill present; `doctor` reports protocol/socket; socket client deferred |
 
 ## Current Public Shape
 
@@ -41,6 +47,10 @@ Herdr checks these boxes:
 - a way to choose an agent lane;
 - a preflight doctor for Herdr-based development environments;
 - a small library of optional sample recipes.
+
+This is intended to be Mohamed's first public open-source project, so the launch
+bar is clarity over cleverness: no hidden personal workflow assumptions, no
+extra Herdr clone surface, no raw protocol client until it has a public reason.
 
 The default command path must stay boring:
 
@@ -69,6 +79,8 @@ sheprd connect my-project --recipe agent-dev
 - Added a public launch checklist.
 - Added a source installer and tag-based release workflow.
 - Added `SKILL.md` for agent-facing usage boundaries.
+- Added Herdr protocol/socket readiness to `doctor` so future native API work has
+  an observable gate.
 
 ## Still Missing Before Public Release
 
@@ -76,18 +88,22 @@ These should be handled before publishing a real public `v0.1.0`:
 
 1. Run the full prelaunch chaos checklist.
 2. Confirm README, CLI help, website, changelog, and docs agree.
-3. Decide the public GitHub owner and update issue contact links if needed.
-4. Rewrite/squash local private history into one polished root commit named
+3. Compare Sheprd's README, AGENTS.md, SKILL.md, contribution guide, issue
+   templates, discussions, release notes, and install docs against Herdr's
+   public surfaces.
+4. Decide the public GitHub owner and update issue contact links if needed.
+5. Rewrite/squash local private history into one polished root commit named
    `Initial commit`.
-5. Run the release workflow once against the public remote.
-6. Add a real docs site if the one-page site becomes too small.
+6. Run the release workflow once against the public remote.
+7. Add a real docs site if the one-page site becomes too small.
 
 ## Deferred On Purpose
 
 Do not add these just to look mature:
 
 - an approval-gate workflow before there are public contributors;
-- custom Herdr socket code while CLI wrappers cover the workflow;
+- custom Herdr socket code while CLI wrappers cover the workflow and there is no
+  public client/event-subscriber use case;
 - a Ratatui picker before the shell commands are boringly stable;
 - opinionated personal layouts as default behavior;
 - Homebrew, mise, or Nix packaging before the first release contract is settled.

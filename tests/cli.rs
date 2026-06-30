@@ -37,6 +37,25 @@ fn recipes_text_marks_agent_dev_as_sample() {
 }
 
 #[test]
+fn doctor_reports_herdr_protocol_and_socket() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    fixture.fake_tool("nvim");
+    fixture.fake_tool("lazygit");
+    fixture.fake_tool("codex");
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["doctor", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("protocol=14"))
+        .stdout(predicate::str::contains("socket=/tmp/herdr.sock"));
+}
+
+#[test]
 fn list_marks_running_workspace() {
     let fixture = Fixture::new();
     fixture.write_config("codex");
@@ -239,7 +258,7 @@ impl Fixture {
 printf '%s\n' "$*" >> "$HERDR_TEST_LOG"
 case "$1 $2" in
   "status server")
-    printf 'status: running\nversion: 0.6.2\ncompatible: yes\n'
+    printf 'status: running\nversion: 0.7.1\nprotocol: 14\ncompatible: yes\nsocket: /tmp/herdr.sock\n'
     ;;
   "workspace list")
     if [ -n "{existing}" ]; then
