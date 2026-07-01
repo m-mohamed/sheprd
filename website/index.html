@@ -481,10 +481,11 @@ scripts/install-local.sh</pre>
         <div class="wrap split">
           <div>
             <h2>Fast path.</h2>
-            <p class="subtitle">Check the machine, list projects, connect. Use a sample recipe only when you want sheprd to shape a fresh workspace.</p>
+            <p class="subtitle">Preview config, check the machine, list projects, connect. Use a sample recipe only when you want sheprd to shape a fresh workspace.</p>
           </div>
           <div class="codeblock">
-            <pre>sheprd doctor
+            <pre>sheprd init --print
+sheprd doctor
 sheprd list
 sheprd connect my-project
 sheprd connect my-project --recipe agent-dev</pre>
@@ -514,6 +515,7 @@ Herdr : sheprd</pre>
           <div class="codeblock">
             <pre>sheprd doctor --json
 sheprd list --json
+sheprd init --print --json
 sheprd connect my-project --json
 sheprd connect my-project --no-attach</pre>
           </div>

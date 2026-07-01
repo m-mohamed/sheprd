@@ -37,6 +37,75 @@ fn recipes_text_marks_agent_dev_as_sample() {
 }
 
 #[test]
+fn init_prints_starter_config_without_writing() {
+    let fixture = Fixture::new();
+    let config_path = fixture.home.path().join("custom/config.toml");
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .env("HOME", fixture.home.path())
+        .env("SHEPRD_CONFIG", &config_path)
+        .args(["init", "--print", "--root", "~/work", "--agent", "opencode"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("# sheprd config"))
+        .stdout(predicate::str::contains("\"~/work\""))
+        .stdout(predicate::str::contains("default_agent = \"opencode\""));
+
+    assert!(!config_path.exists());
+}
+
+#[test]
+fn init_writes_starter_config_and_refuses_existing_without_force() {
+    let fixture = Fixture::new();
+    let config_path = fixture.home.path().join("custom/config.toml");
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .env("HOME", fixture.home.path())
+        .env("SHEPRD_CONFIG", &config_path)
+        .args(["init", "--root", "~/work"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("created config:"));
+
+    let contents = std::fs::read_to_string(&config_path).expect("config");
+    assert!(contents.contains("\"~/work\""));
+    assert!(contents.contains("default_agent = \"codex\""));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .env("HOME", fixture.home.path())
+        .env("SHEPRD_CONFIG", &config_path)
+        .arg("init")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("config already exists"));
+}
+
+#[test]
+fn init_json_reports_force_overwrite() {
+    let fixture = Fixture::new();
+    let config_path = fixture.home.path().join("custom/config.toml");
+    std::fs::create_dir_all(config_path.parent().expect("parent")).expect("config dir");
+    std::fs::write(&config_path, "default_agent = \"codex\"\n").expect("seed config");
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .env("HOME", fixture.home.path())
+        .env("SHEPRD_CONFIG", &config_path)
+        .args(["init", "--force", "--json", "--agent", "droid"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"existed\": true"))
+        .stdout(predicate::str::contains("\"written\": true"))
+        .stdout(predicate::str::contains("\"default_agent\": \"droid\""));
+
+    let contents = std::fs::read_to_string(&config_path).expect("config");
+    assert!(contents.contains("default_agent = \"droid\""));
+}
+
+#[test]
 fn doctor_reports_herdr_protocol_and_socket() {
     let fixture = Fixture::new();
     fixture.write_config("codex");

@@ -80,6 +80,18 @@ Herdr must be installed separately. Start with the Herdr install docs:
 
 ## Quick Start
 
+Preview the default config:
+
+```bash
+sheprd init --print
+```
+
+Write a starter config:
+
+```bash
+sheprd init
+```
+
 Check the environment:
 
 ```bash
@@ -119,6 +131,8 @@ existing workspace focuses it instead of reshaping live panes.
 ## Commands
 
 ```bash
+sheprd init --print
+sheprd init
 sheprd list
 sheprd connect my-project
 sheprd connect my-project --recipe agent-dev
@@ -141,6 +155,7 @@ Use `--json` when scripts or agents need stable output:
 ```bash
 sheprd list --json
 sheprd doctor --json
+sheprd init --print --json
 sheprd connect my-project --json
 sheprd recipes --json
 sheprd show-config --json
@@ -161,6 +176,11 @@ sheprd connect my-project --no-attach
 ## Configuration
 
 Create `~/.config/sheprd/config.toml` when defaults are not enough:
+
+```bash
+sheprd init --print
+sheprd init --root ~/Workspace --root ~/src
+```
 
 ```toml
 roots = [

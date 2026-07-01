@@ -32,12 +32,28 @@ fn run() -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     };
 
+    if let Command::Init {
+        print,
+        force,
+        roots,
+    } = &command
+    {
+        return init(
+            cli.agent.unwrap_or(Agent::Codex),
+            roots.clone(),
+            *print,
+            *force,
+            cli.json,
+        );
+    }
+
     let mut config = Config::load()?;
     if let Some(agent) = cli.agent {
         config.default_agent = agent;
     }
 
     match command {
+        Command::Init { .. } => unreachable!("init returns before config load"),
         Command::List => list(&config, cli.json),
         Command::Connect { project, recipe } => {
             connect(&config, &project, recipe, cli.no_attach, cli.json)
@@ -46,6 +62,65 @@ fn run() -> Result<ExitCode> {
         Command::Doctor => doctor(&config, cli.json),
         Command::ShowConfig => show_config(&config, cli.json),
     }
+}
+
+#[derive(Serialize)]
+struct InitOutput {
+    path: String,
+    existed: bool,
+    written: bool,
+    default_agent: Agent,
+    roots: Vec<String>,
+    contents: Option<String>,
+}
+
+fn init(
+    agent: Agent,
+    roots: Vec<String>,
+    print_only: bool,
+    force: bool,
+    json: bool,
+) -> Result<ExitCode> {
+    let outcome = config::init(config::InitConfig {
+        path: config::config_path()?,
+        roots: if roots.is_empty() {
+            config::default_root_strings()
+        } else {
+            roots
+        },
+        default_agent: agent,
+        force,
+        print_only,
+    })?;
+
+    if json {
+        print_json(&InitOutput {
+            path: outcome.path.display().to_string(),
+            existed: outcome.existed,
+            written: outcome.written,
+            default_agent: outcome.default_agent,
+            roots: outcome.roots,
+            contents: if print_only {
+                Some(outcome.contents)
+            } else {
+                None
+            },
+        })?;
+    } else if print_only {
+        print!("{}", outcome.contents);
+    } else {
+        println!(
+            "{} config: {}",
+            if outcome.existed {
+                "updated"
+            } else {
+                "created"
+            },
+            outcome.path.display()
+        );
+    }
+
+    Ok(ExitCode::SUCCESS)
 }
 
 #[derive(Serialize)]

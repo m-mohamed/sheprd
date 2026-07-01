@@ -26,6 +26,21 @@ pub struct Cli {
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command {
+    /// Print or write a starter config file.
+    Init {
+        /// Print the starter config instead of writing it.
+        #[arg(long)]
+        print: bool,
+
+        /// Overwrite an existing config file.
+        #[arg(long)]
+        force: bool,
+
+        /// Root directory to scan for Git repositories. Can be repeated.
+        #[arg(long = "root")]
+        roots: Vec<String>,
+    },
+
     /// List discovered projects and their Herdr workspace state.
     List,
 

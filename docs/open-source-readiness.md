@@ -21,6 +21,7 @@ Herdr checks these boxes:
 | --- | --- | --- |
 | Product boundary | Runtime, workspaces, tabs, panes, persistence, remotes, keybindings, integrations, agent state | Defined: `sheprd` is the entry layer only |
 | Public README | Clear install, quick start, concepts, comparison, docs links | Improved, source-first, still needs final package/install decision |
+| First-run setup | User can preview/write starter config safely | `sheprd init --print`, `sheprd init`, `--force` guard |
 | Contributor guide | AI-use rule, issue/discussion routing, PR standards, checks | Present, modeled after Herdr |
 | Agent guide | Architecture and validation rules for coding agents | Present |
 | Changelog | Human-readable release notes | Present |
@@ -46,6 +47,7 @@ Herdr checks these boxes:
 `sheprd` should launch publicly as:
 
 - a Herdr companion, not a Herdr replacement;
+- a first-run config bootstrapper;
 - a project selector and workspace connector;
 - a way to choose an agent lane;
 - a preflight doctor for Herdr-based development environments;
@@ -92,6 +94,8 @@ sheprd connect my-project --recipe agent-dev
 - Added `just prelaunch-check`, `just metadata-smoke`, `just install-smoke`, and
   `just live-smoke` so public-prelaunch proof is executable instead of only
   written down.
+- Added `init` so users and agents can preview or write starter config without
+  hand-authoring TOML.
 
 ## Still Missing Before Public Release
 

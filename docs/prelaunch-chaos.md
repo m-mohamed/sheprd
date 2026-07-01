@@ -11,6 +11,8 @@ just check
 just metadata-smoke
 just install-smoke
 target/release/sheprd --help
+target/release/sheprd init --print
+target/release/sheprd init --print --json
 target/release/sheprd connect --help
 target/release/sheprd recipes
 target/release/sheprd recipes --json
@@ -20,11 +22,11 @@ SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
 /tmp/sheprd-install/sheprd --version
 ```
 
-Expected result: commands succeed, help text says sample recipes, and output
-matches README, website, and changelog language. `cargo package` should also
-verify the crate package without warnings. `connect --json` must report the
-project, selected agent, Herdr workspace label/id, action, recipe status, and
-`attached: false`.
+Expected result: commands succeed, help text says sample recipes, `init --print`
+emits valid starter config without writing, and output matches README, website,
+and changelog language. `cargo package` should also verify the crate package
+without warnings. `connect --json` must report the project, selected agent,
+Herdr workspace label/id, action, recipe status, and `attached: false`.
 
 The shortcut for the full local, install, and live smoke pass is:
 
@@ -71,9 +73,13 @@ Expected result:
 target/release/sheprd connect /tmp/not-a-repo --no-attach
 target/release/sheprd connect definitely-not-a-project --no-attach
 target/release/sheprd --agent missing-agent doctor
+tmp_home="$(mktemp -d /tmp/sheprd-home.XXXXXX)"
+SHEPRD_CONFIG="$tmp_home/config.toml" target/release/sheprd init
+SHEPRD_CONFIG="$tmp_home/config.toml" target/release/sheprd init
 ```
 
 Expected result: failures are understandable and do not mutate Herdr state.
+The second `init` must fail unless `--force` is explicit.
 
 ## Terminal Gates
 

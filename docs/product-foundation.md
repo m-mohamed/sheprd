@@ -10,6 +10,8 @@ The project is legitimate if it stays narrow:
 The first public product surface is intentionally small:
 
 ```bash
+sheprd init --print
+sheprd init
 sheprd list
 sheprd connect <project-or-path>
 sheprd connect <project-or-path> --json
@@ -26,6 +28,10 @@ Plain `connect` creates or focuses a workspace. Sample recipes are opt-in so
 project, selected agent, Herdr workspace label/id, whether the workspace was
 created or focused, recipe use, and attach status without launching an
 interactive Herdr client.
+
+`init` is the first-run bootstrap surface. It prints or writes a starter config,
+uses repeated `--root` values for discovery roots, and refuses to overwrite an
+existing config unless `--force` is explicit.
 
 Future work should add explicit project entries, recent ranking, recipe config,
 and an optional Ratatui picker only after the CLI behavior is boringly stable.

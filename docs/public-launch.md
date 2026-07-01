@@ -24,6 +24,8 @@ Confirm:
 
 - no private machine paths in docs, website, tests, or workflow files;
 - README, website, CLI help, changelog, and release docs use the same language;
+- `sheprd init --print` previews starter config and `sheprd init` refuses to
+  overwrite an existing config without `--force`;
 - `agent-dev` is presented as a sample recipe, not default product policy;
 - `sheprd connect <project>` does not force panes, tabs, or commands;
 - `sheprd connect <project> --json` reports a non-interactive structured

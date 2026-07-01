@@ -21,6 +21,13 @@ sheprd doctor
 sheprd list
 ```
 
+When onboarding a fresh machine or unclear config, inspect the starter config
+without writing first:
+
+```bash
+sheprd init --print
+```
+
 If you are already inside Herdr, prefer:
 
 ```bash
@@ -77,8 +84,10 @@ Read config with:
 sheprd show-config
 ```
 
-Do not edit `~/.config/sheprd/config.toml` unless the user asks for a config
-change.
+Use `sheprd init` to create a starter config when the user asks for bootstrap
+help. It refuses to overwrite an existing config unless `--force` is explicit.
+Do not edit `~/.config/sheprd/config.toml` directly unless the user asks for a
+config change.
 
 ## Development
 

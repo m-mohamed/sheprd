@@ -27,6 +27,9 @@ build:
 
 chaos-smoke: build
     target/release/sheprd --help
+    target/release/sheprd init --help
+    target/release/sheprd init --print
+    target/release/sheprd init --print --json
     target/release/sheprd connect --help
     target/release/sheprd recipes
     target/release/sheprd recipes --json

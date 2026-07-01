@@ -19,6 +19,25 @@ pub struct ConfigProject {
     pub path: PathBuf,
 }
 
+#[derive(Clone, Debug)]
+pub struct InitConfig {
+    pub path: PathBuf,
+    pub roots: Vec<String>,
+    pub default_agent: Agent,
+    pub force: bool,
+    pub print_only: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct InitOutcome {
+    pub path: PathBuf,
+    pub roots: Vec<String>,
+    pub default_agent: Agent,
+    pub existed: bool,
+    pub written: bool,
+    pub contents: String,
+}
+
 #[derive(Debug, Deserialize)]
 struct RawConfig {
     roots: Option<Vec<String>>,
@@ -78,11 +97,10 @@ impl Config {
     fn defaults(path: PathBuf) -> Result<Self> {
         Ok(Self {
             path,
-            roots: vec![
-                expand_home("~/Workspace")?,
-                expand_home("~/code")?,
-                expand_home("~/src")?,
-            ],
+            roots: default_root_strings()
+                .into_iter()
+                .map(expand_home)
+                .collect::<Result<Vec<_>>>()?,
             projects: Vec::new(),
             ignore: vec![
                 ".git".into(),
@@ -98,11 +116,93 @@ impl Config {
     }
 }
 
-fn config_path() -> Result<PathBuf> {
+pub fn init(config: InitConfig) -> Result<InitOutcome> {
+    let existed = config.path.exists();
+    let contents = sample_config(config.default_agent, &config.roots);
+
+    if config.print_only {
+        return Ok(InitOutcome {
+            path: config.path,
+            roots: config.roots,
+            default_agent: config.default_agent,
+            existed,
+            written: false,
+            contents,
+        });
+    }
+
+    if existed && !config.force {
+        return Err(SheprdError::Message(format!(
+            "config already exists at {}; use --print to inspect or --force to overwrite",
+            config.path.display()
+        )));
+    }
+
+    if let Some(parent) = config.path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&config.path, &contents)?;
+
+    Ok(InitOutcome {
+        path: config.path,
+        roots: config.roots,
+        default_agent: config.default_agent,
+        existed,
+        written: true,
+        contents,
+    })
+}
+
+pub fn config_path() -> Result<PathBuf> {
     if let Some(path) = std::env::var_os("SHEPRD_CONFIG") {
         return Ok(PathBuf::from(path));
     }
     Ok(home()?.join(".config/sheprd/config.toml"))
+}
+
+pub fn default_root_strings() -> Vec<String> {
+    vec!["~/Workspace".into(), "~/code".into(), "~/src".into()]
+}
+
+fn sample_config(default_agent: Agent, roots: &[String]) -> String {
+    let roots = if roots.is_empty() {
+        default_root_strings()
+    } else {
+        roots.to_vec()
+    };
+    let mut lines = vec![
+        "# sheprd config".into(),
+        "# Herdr owns runtime state. sheprd owns project discovery and entry.".into(),
+        "roots = [".into(),
+    ];
+    for root in roots {
+        lines.push(format!("  \"{}\",", escape_toml_string(&root)));
+    }
+    lines.extend([
+        "]".into(),
+        format!("default_agent = \"{default_agent}\""),
+        "max_depth = 6".into(),
+        "".into(),
+        "# Use explicit projects when the public name should differ from the directory name."
+            .into(),
+        "# [[projects]]".into(),
+        "# name = \"my-project\"".into(),
+        "# path = \"~/workspace/my-project-main-worktree\"".into(),
+        "".into(),
+        "ignore = [".into(),
+        "  \".git\",".into(),
+        "  \".direnv\",".into(),
+        "  \".tmp\",".into(),
+        "  \"node_modules\",".into(),
+        "  \"target\",".into(),
+        "  \"vendor\",".into(),
+        "]".into(),
+    ]);
+    format!("{}\n", lines.join("\n"))
+}
+
+fn escape_toml_string(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 pub fn expand_home(value: impl AsRef<str>) -> Result<PathBuf> {
