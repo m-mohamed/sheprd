@@ -41,6 +41,17 @@ sheprd connect <project>
 create or focus the matching Herdr workspace. They should not force panes, tabs,
 or commands by default.
 
+For automation, prefer:
+
+```bash
+sheprd connect <project> --json
+```
+
+JSON connect output reports the resolved project, selected agent, Herdr
+workspace label/id, whether the workspace was focused or created, recipe use,
+and whether an interactive Herdr client was attached. JSON mode does not launch
+an interactive Herdr client.
+
 ## Sample Recipes
 
 Recipes are optional samples, not product policy.

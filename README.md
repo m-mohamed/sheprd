@@ -136,14 +136,21 @@ sheprd --agent opencode connect my-project
 sheprd --agent droid list
 ```
 
-Use `--json` on read-only commands when scripts or agents need stable output:
+Use `--json` when scripts or agents need stable output:
 
 ```bash
 sheprd list --json
 sheprd doctor --json
+sheprd connect my-project --json
 sheprd recipes --json
 sheprd show-config --json
 ```
+
+`sheprd connect --json` reports the resolved project, selected agent, Herdr
+workspace label/id, whether it focused or created, recipe use, and whether an
+interactive Herdr client was attached. JSON mode does not launch an interactive
+Herdr client; add a separate `sheprd connect my-project` when you want the human
+terminal attached.
 
 If you are already inside Herdr, use `--no-attach` to avoid nesting clients:
 

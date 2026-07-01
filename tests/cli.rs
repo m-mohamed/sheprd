@@ -97,6 +97,35 @@ fn connect_existing_workspace_focuses_without_create() {
 }
 
 #[test]
+fn connect_json_reports_existing_workspace() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    fixture.git_repo("sample-app");
+    fixture.fake_tool("nvim");
+    fixture.fake_tool("lazygit");
+    fixture.fake_tool("codex");
+    fixture.fake_herdr(Some("sample-app-codex"));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["connect", "sample-app", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"action\": \"focused_existing\""))
+        .stdout(predicate::str::contains(
+            "\"workspace\": \"sample-app-codex\"",
+        ))
+        .stdout(predicate::str::contains("\"workspace_id\": \"w_existing\""))
+        .stdout(predicate::str::contains("\"recipe\": null"))
+        .stdout(predicate::str::contains("\"attached\": false"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("workspace focus w_existing"));
+    assert!(!log.contains("workspace create"));
+}
+
+#[test]
 fn explicit_projects_keep_configured_name_for_custom_path() {
     let fixture = Fixture::new();
     fixture.write_config_with_project("codex", "corvus", "corvus-pride-month-logo");
@@ -125,6 +154,37 @@ fn explicit_projects_keep_configured_name_for_custom_path() {
 
     let log = std::fs::read_to_string(fixture.log()).expect("log");
     assert!(log.contains("workspace focus w_existing"));
+}
+
+#[test]
+fn connect_json_reports_created_workspace_and_recipe() {
+    let fixture = Fixture::new();
+    fixture.write_config("hermes");
+    fixture.git_repo("sample-app");
+    fixture.fake_tool("nvim");
+    fixture.fake_tool("lazygit");
+    fixture.fake_tool("hermes");
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["connect", "sample-app", "--recipe", "agent-dev", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "\"action\": \"created_workspace\"",
+        ))
+        .stdout(predicate::str::contains(
+            "\"workspace\": \"sample-app-hermes\"",
+        ))
+        .stdout(predicate::str::contains("\"workspace_id\": \"w_new\""))
+        .stdout(predicate::str::contains("\"recipe\": \"agent-dev\""))
+        .stdout(predicate::str::contains("\"attached\": false"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("workspace create"));
+    assert!(log.contains("pane run w_new-2 hermes"));
 }
 
 #[test]

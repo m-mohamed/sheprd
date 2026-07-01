@@ -46,6 +46,7 @@ fn website_keeps_the_public_surface() {
         "Agent-safe",
         "Herdr owns",
         "sheprd owns",
+        "connect my-project --json",
     ] {
         assert!(html.contains(needle), "website is missing {needle}");
     }

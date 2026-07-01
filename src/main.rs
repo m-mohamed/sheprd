@@ -39,7 +39,9 @@ fn run() -> Result<ExitCode> {
 
     match command {
         Command::List => list(&config, cli.json),
-        Command::Connect { project, recipe } => connect(&config, &project, recipe, cli.no_attach),
+        Command::Connect { project, recipe } => {
+            connect(&config, &project, recipe, cli.no_attach, cli.json)
+        }
         Command::Recipes => recipes(&config, cli.json),
         Command::Doctor => doctor(&config, cli.json),
         Command::ShowConfig => show_config(&config, cli.json),
@@ -97,11 +99,42 @@ fn connect(
     selector: &str,
     recipe_name: Option<RecipeName>,
     no_attach: bool,
+    json: bool,
 ) -> Result<ExitCode> {
     let project = project::resolve(config, selector)?;
     let recipe = recipe_name.map(|name| name.build(config.default_agent));
-    herdr::connect(&project, config.default_agent, recipe.as_ref(), !no_attach)?;
+    let outcome = herdr::connect(
+        &project,
+        config.default_agent,
+        recipe.as_ref(),
+        !no_attach && !json,
+    )?;
+    if json {
+        print_json(&ConnectOutput {
+            project: ProjectConfigRow {
+                name: project.name,
+                path: project.path.display().to_string(),
+            },
+            agent: config.default_agent,
+            action: outcome.action,
+            workspace: outcome.workspace_label,
+            workspace_id: outcome.workspace_id,
+            recipe: outcome.recipe,
+            attached: outcome.attached,
+        })?;
+    }
     Ok(ExitCode::SUCCESS)
+}
+
+#[derive(Serialize)]
+struct ConnectOutput {
+    project: ProjectConfigRow,
+    agent: Agent,
+    action: herdr::ConnectAction,
+    workspace: String,
+    workspace_id: String,
+    recipe: Option<String>,
+    attached: bool,
 }
 
 #[derive(Serialize)]

@@ -37,6 +37,7 @@ Herdr checks these boxes:
 | Packaging | Install script, Homebrew, mise, Nix | Source installer added; Homebrew/mise/Nix deferred |
 | Docs site | Polished site and versioned docs | One-page site only |
 | Protocol/client depth | Socket API, protocol readiness, and agent skill | Agent skill present; `doctor` reports protocol/socket; socket client deferred |
+| Automation output | Agents can drive the tool without scraping prose | `connect --json` reports project/workspace/action/recipe/attach outcome |
 
 ## Current Public Shape
 
@@ -46,6 +47,7 @@ Herdr checks these boxes:
 - a project selector and workspace connector;
 - a way to choose an agent lane;
 - a preflight doctor for Herdr-based development environments;
+- a clean JSON result for agent/script connection flows;
 - a small library of optional sample recipes.
 
 This is intended to be Mohamed's first public open-source project, so the launch
@@ -81,6 +83,8 @@ sheprd connect my-project --recipe agent-dev
 - Added `SKILL.md` for agent-facing usage boundaries.
 - Added Herdr protocol/socket readiness to `doctor` so future native API work has
   an observable gate.
+- Added `connect --json` so agents and scripts can see whether Sheprd focused or
+  created a Herdr workspace without launching an interactive client.
 
 ## Still Missing Before Public Release
 

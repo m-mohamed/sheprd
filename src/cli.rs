@@ -15,7 +15,7 @@ pub struct Cli {
     #[arg(long, value_enum, global = true)]
     pub agent: Option<Agent>,
 
-    /// Emit JSON for read-only commands.
+    /// Emit JSON for automation-friendly commands.
     #[arg(long, global = true)]
     pub json: bool,
 

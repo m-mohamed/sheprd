@@ -13,13 +13,16 @@ target/release/sheprd connect --help
 target/release/sheprd recipes
 target/release/sheprd recipes --json
 target/release/sheprd show-config
+target/release/sheprd connect "$PWD" --json
 SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
 /tmp/sheprd-install/sheprd --version
 ```
 
 Expected result: commands succeed, help text says sample recipes, and output
 matches README, website, and changelog language. `cargo package` should also
-verify the crate package without warnings.
+verify the crate package without warnings. `connect --json` must report the
+project, selected agent, Herdr workspace label/id, action, recipe status, and
+`attached: false`.
 
 ## Herdr Runtime Gates
 
@@ -30,10 +33,11 @@ herdr status
 target/release/sheprd doctor
 target/release/sheprd list
 target/release/sheprd connect "$PWD" --no-attach
+target/release/sheprd connect "$PWD" --json
 target/release/sheprd connect "$PWD" --recipe agent-dev --no-attach
 tmp_repo="$(mktemp -d /tmp/sheprd-recipe.XXXXXX)"
 git -C "$tmp_repo" init
-target/release/sheprd connect "$tmp_repo" --recipe agent-dev --no-attach
+target/release/sheprd connect "$tmp_repo" --recipe agent-dev --json
 ```
 
 Expected result:
@@ -44,6 +48,8 @@ Expected result:
   workspace.
 - repeated connects reuse the existing workspace instead of duplicating state or
   reshaping live panes.
+- JSON mode is non-interactive and reports whether it focused an existing
+  workspace or created a new one.
 
 ## Failure Gates
 

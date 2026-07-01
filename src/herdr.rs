@@ -1,7 +1,7 @@
 use crate::error::{Result, SheprdError};
 use crate::project::Project;
 use crate::recipe::{Agent, Recipe};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::io::IsTerminal;
 use std::path::Path;
@@ -16,6 +16,22 @@ pub struct ServerStatus {
     pub protocol: Option<String>,
     pub compatible: Option<bool>,
     pub socket: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectAction {
+    CreatedWorkspace,
+    FocusedExisting,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ConnectOutcome {
+    pub action: ConnectAction,
+    pub workspace_id: String,
+    pub workspace_label: String,
+    pub recipe: Option<String>,
+    pub attached: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,7 +84,7 @@ pub fn connect(
     agent: Agent,
     recipe: Option<&Recipe>,
     attach: bool,
-) -> Result<()> {
+) -> Result<ConnectOutcome> {
     ensure_server()?;
     let label = project.workspace_label(agent);
     if let Some(workspace) = workspaces()?
@@ -76,17 +92,30 @@ pub fn connect(
         .find(|workspace| workspace.label == label)
     {
         run_herdr(["workspace", "focus", &workspace.workspace_id])?;
-        maybe_attach(attach)?;
-        return Ok(());
+        let attached = maybe_attach(attach)?;
+        return Ok(ConnectOutcome {
+            action: ConnectAction::FocusedExisting,
+            workspace_id: workspace.workspace_id,
+            workspace_label: workspace.label,
+            recipe: None,
+            attached,
+        });
     }
 
     let created = create_workspace(project.path.as_path(), &label)?;
+    let recipe_name = recipe.map(|recipe| recipe.name.clone());
     if let Some(recipe) = recipe {
         apply_agent_dev(project.path.as_path(), recipe.agent, &created)?;
     }
     run_herdr(["workspace", "focus", &created.workspace.workspace_id])?;
-    maybe_attach(attach)?;
-    Ok(())
+    let attached = maybe_attach(attach)?;
+    Ok(ConnectOutcome {
+        action: ConnectAction::CreatedWorkspace,
+        workspace_id: created.workspace.workspace_id,
+        workspace_label: created.workspace.label,
+        recipe: recipe_name,
+        attached,
+    })
 }
 
 fn apply_agent_dev(cwd: &Path, agent: Agent, created: &WorkspaceCreated) -> Result<()> {
@@ -234,13 +263,13 @@ fn ensure_server() -> Result<()> {
     ))
 }
 
-fn maybe_attach(attach: bool) -> Result<()> {
+fn maybe_attach(attach: bool) -> Result<bool> {
     if !attach || inside_herdr() || !std::io::stdout().is_terminal() {
-        return Ok(());
+        return Ok(false);
     }
     let status = Command::new("herdr").status()?;
     if status.success() {
-        Ok(())
+        Ok(true)
     } else {
         Err(SheprdError::Message(format!(
             "herdr client exited with status {status}"
