@@ -197,6 +197,18 @@ fn connect(
             recipe: outcome.recipe,
             attached: outcome.attached,
         })?;
+    } else {
+        let action = match outcome.action {
+            herdr::ConnectAction::CreatedWorkspace => "created",
+            herdr::ConnectAction::FocusedExisting => "focused",
+        };
+        println!("{action} Herdr workspace: {}", outcome.workspace_label);
+        println!("project: {}", project.name);
+        println!("agent: {}", config.default_agent);
+        if let Some(recipe) = outcome.recipe {
+            println!("recipe: {recipe}");
+        }
+        println!("attached: {}", if outcome.attached { "yes" } else { "no" });
     }
     Ok(ExitCode::SUCCESS)
 }

@@ -56,7 +56,8 @@ sheprd connect <project>
 
 `connect`, `open`, and `switch` are aliases for the same baseline behavior:
 create or focus the matching Herdr workspace. They should not force panes, tabs,
-or commands by default.
+or commands by default. Non-JSON output reports the workspace action, project,
+agent, optional recipe, and attach result.
 
 For automation, prefer:
 

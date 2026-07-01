@@ -13,3 +13,4 @@
   maintainer guidance.
 - Strengthened CI and release workflow static smoke coverage.
 - Added typed Herdr protocol readiness fields to `doctor --json`.
+- Added concise human outcome output for non-JSON `connect`.

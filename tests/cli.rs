@@ -163,7 +163,13 @@ fn connect_existing_workspace_focuses_without_create() {
         .envs(fixture.env())
         .args(["connect", "sample-app", "--no-attach"])
         .assert()
-        .success();
+        .success()
+        .stdout(predicate::str::contains(
+            "focused Herdr workspace: sample-app-codex",
+        ))
+        .stdout(predicate::str::contains("project: sample-app"))
+        .stdout(predicate::str::contains("agent: codex"))
+        .stdout(predicate::str::contains("attached: no"));
 
     let log = std::fs::read_to_string(fixture.log()).expect("log");
     assert!(log.contains("workspace focus w_existing"));

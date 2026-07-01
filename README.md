@@ -113,7 +113,8 @@ sheprd connect my-project
 
 `connect`, `open`, and `switch` share the same baseline behavior: create or
 focus the Herdr workspace for a project. They do not force panes, tabs, or
-commands by default.
+commands by default. Non-JSON output reports the workspace action, project,
+agent, optional recipe, and attach result.
 
 Use a starter layout only when you want one:
 
