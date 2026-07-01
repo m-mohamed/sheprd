@@ -29,8 +29,10 @@ Herdr checks these boxes:
 | Crate package | `cargo package` should verify cleanly | Present |
 | Git hooks | Pre-commit and commit-msg discipline | Present |
 | CI | GitHub Actions for fmt, clippy, tests | Present |
+| Metadata smoke | Workflow/template YAML validation | `just metadata-smoke` |
 | Dependency updates | Dependabot for Cargo and GitHub Actions | Added |
 | Issue templates | Repro-first bug reports | Added |
+| PR template | Boundary, proof, docs, and contributor understanding | Added |
 | Discussion templates | Ideas and Q&A outside the bug queue | Added |
 | Release process | SemVer tags, release commits, release notes | Documented, not automated |
 | Release automation | Multi-platform builds and GitHub releases | Tag workflow added and privately smoke-tested; keep disabled by policy until final gate |
@@ -75,6 +77,8 @@ sheprd connect my-project --recipe agent-dev
 
 - Corrected public language from generic "recipes" to optional sample recipes.
 - Added issue and discussion templates.
+- Added a pull request template that checks Herdr boundary, proof, docs, and
+  contributor understanding.
 - Added `clippy.toml` for Rust lint discipline.
 - Added this readiness scorecard.
 - Added a prelaunch chaos checklist.
@@ -85,6 +89,9 @@ sheprd connect my-project --recipe agent-dev
   an observable gate.
 - Added `connect --json` so agents and scripts can see whether Sheprd focused or
   created a Herdr workspace without launching an interactive client.
+- Added `just prelaunch-check`, `just metadata-smoke`, `just install-smoke`, and
+  `just live-smoke` so public-prelaunch proof is executable instead of only
+  written down.
 
 ## Still Missing Before Public Release
 

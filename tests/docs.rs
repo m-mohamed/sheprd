@@ -52,6 +52,24 @@ fn website_keeps_the_public_surface() {
     }
 }
 
+#[test]
+fn cargo_package_keeps_public_support_files() {
+    let manifest = fs::read_to_string(repo_root().join("Cargo.toml")).expect("cargo manifest");
+
+    for needle in [
+        "AGENTS.md",
+        "scripts/**/*.sh",
+        "website/index.html",
+        "website/assets/sheprd-mark.svg",
+        "justfile",
+    ] {
+        assert!(
+            manifest.contains(needle),
+            "package include is missing {needle}"
+        );
+    }
+}
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
@@ -62,6 +80,7 @@ fn doc_files(root: &Path) -> Vec<PathBuf> {
         root.join("CONTRIBUTING.md"),
         root.join("SKILL.md"),
         root.join("AGENTS.md"),
+        root.join(".github/pull_request_template.md"),
         root.join("website/index.html"),
     ];
 

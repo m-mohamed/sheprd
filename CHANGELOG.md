@@ -8,3 +8,5 @@
 - Added project discovery, config loading, `connect`, `list`, `recipes`, `doctor`, and `show-config`.
 - Added a first bundled sample recipe, `agent-dev`.
 - Added `connect --json` for non-interactive agent/script connection outcomes.
+- Added prelaunch Just gates, a pull request template, and stronger agent
+  maintainer guidance.

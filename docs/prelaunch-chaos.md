@@ -8,6 +8,8 @@ The point is to prove the actual user flow, not just compile the code.
 
 ```bash
 just check
+just metadata-smoke
+just install-smoke
 target/release/sheprd --help
 target/release/sheprd connect --help
 target/release/sheprd recipes
@@ -24,6 +26,12 @@ verify the crate package without warnings. `connect --json` must report the
 project, selected agent, Herdr workspace label/id, action, recipe status, and
 `attached: false`.
 
+The shortcut for the full local, install, and live smoke pass is:
+
+```bash
+just prelaunch-check
+```
+
 ## Herdr Runtime Gates
 
 With Herdr running:
@@ -38,6 +46,12 @@ target/release/sheprd connect "$PWD" --recipe agent-dev --no-attach
 tmp_repo="$(mktemp -d /tmp/sheprd-recipe.XXXXXX)"
 git -C "$tmp_repo" init
 target/release/sheprd connect "$tmp_repo" --recipe agent-dev --json
+```
+
+Or run:
+
+```bash
+just live-smoke "$PWD"
 ```
 
 Expected result:

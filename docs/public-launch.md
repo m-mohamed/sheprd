@@ -9,7 +9,9 @@ Run:
 
 ```bash
 just check
-ruby -ryaml -e 'ARGV.each { |path| YAML.load_file(path); puts "ok #{path}" }' .github/workflows/*.yml .github/ISSUE_TEMPLATE/*.yml .github/DISCUSSION_TEMPLATE/*.yml .github/dependabot.yml
+just metadata-smoke
+just install-smoke
+just live-smoke "$PWD"
 SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
 /tmp/sheprd-install/sheprd --version
 ```
@@ -29,6 +31,10 @@ Confirm:
 - recipes only shape newly created workspaces and do not rewrite existing live
   Herdr panes;
 - `SKILL.md` tells agents to use `--no-attach` inside Herdr;
+- `AGENTS.md` explains the architecture, test gates, docs discipline,
+  contribution surface, and no-ship guardrails;
+- the PR template asks for Herdr boundary, proof, docs, and contributor
+  understanding;
 - issue templates are bug-only and discussion templates handle ideas/Q&A;
 - no approval-gate workflow exists until public contributor volume justifies it.
 
