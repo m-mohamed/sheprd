@@ -245,7 +245,47 @@ fn recipes(config: &Config, json: bool) -> Result<ExitCode> {
 #[derive(Serialize)]
 struct DoctorOutput {
     ready: bool,
+    herdr: DoctorHerdr,
     checks: Vec<Check>,
+}
+
+#[derive(Serialize)]
+struct DoctorHerdr {
+    running: bool,
+    version: Option<String>,
+    protocol: Option<String>,
+    compatible: Option<bool>,
+    socket: Option<String>,
+    protocol_ready: bool,
+    error: Option<String>,
+}
+
+impl DoctorHerdr {
+    fn from_status(status: &herdr::ServerStatus) -> Self {
+        let protocol_ready =
+            status.running && status.compatible != Some(false) && status.socket.is_some();
+        Self {
+            running: status.running,
+            version: status.version.clone(),
+            protocol: status.protocol.clone(),
+            compatible: status.compatible,
+            socket: status.socket.clone(),
+            protocol_ready,
+            error: None,
+        }
+    }
+
+    fn unavailable(error: impl Into<String>) -> Self {
+        Self {
+            running: false,
+            version: None,
+            protocol: None,
+            compatible: None,
+            socket: None,
+            protocol_ready: false,
+            error: Some(error.into()),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -263,36 +303,51 @@ fn doctor(config: &Config, json: bool) -> Result<ExitCode> {
         path_check(config.default_agent.executable()),
     ];
 
-    match herdr::server_status() {
-        Ok(Some(status)) => checks.push(Check {
-            name: "herdr_server".into(),
-            ok: status.running && status.compatible != Some(false),
-            detail: format!(
-                "status={} version={} protocol={} compatible={} socket={}",
-                if status.running { "running" } else { "stopped" },
-                status.version.unwrap_or_else(|| "unknown".into()),
-                status.protocol.unwrap_or_else(|| "unknown".into()),
-                status
-                    .compatible
-                    .map(|value| value.to_string())
-                    .unwrap_or_else(|| "unknown".into()),
-                status.socket.unwrap_or_else(|| "unknown".into())
-            ),
-        }),
-        Ok(None) => checks.push(Check {
-            name: "herdr_server".into(),
-            ok: false,
-            detail: "not reachable".into(),
-        }),
-        Err(error) => checks.push(Check {
-            name: "herdr_server".into(),
-            ok: false,
-            detail: error.to_string(),
-        }),
-    }
+    let herdr = match herdr::server_status() {
+        Ok(Some(status)) => {
+            let herdr = DoctorHerdr::from_status(&status);
+            let status_label = if status.running { "running" } else { "stopped" };
+            let version = status.version.unwrap_or_else(|| "unknown".into());
+            let protocol = status.protocol.unwrap_or_else(|| "unknown".into());
+            let compatible = status
+                .compatible
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "unknown".into());
+            let socket = status.socket.unwrap_or_else(|| "unknown".into());
+            checks.push(Check {
+                name: "herdr_server".into(),
+                ok: herdr.protocol_ready,
+                detail: format!(
+                    "status={status_label} version={version} protocol={protocol} compatible={compatible} socket={socket}"
+                ),
+            });
+            herdr
+        }
+        Ok(None) => {
+            checks.push(Check {
+                name: "herdr_server".into(),
+                ok: false,
+                detail: "not reachable".into(),
+            });
+            DoctorHerdr::unavailable("not reachable")
+        }
+        Err(error) => {
+            let message = error.to_string();
+            checks.push(Check {
+                name: "herdr_server".into(),
+                ok: false,
+                detail: message.clone(),
+            });
+            DoctorHerdr::unavailable(message)
+        }
+    };
 
     let ready = checks.iter().all(|check| check.ok);
-    let output = DoctorOutput { ready, checks };
+    let output = DoctorOutput {
+        ready,
+        herdr,
+        checks,
+    };
     if json {
         print_json(&output)?;
     } else {

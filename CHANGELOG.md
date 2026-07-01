@@ -12,3 +12,4 @@
 - Added prelaunch Just gates, a pull request template, and stronger agent
   maintainer guidance.
 - Strengthened CI and release workflow static smoke coverage.
+- Added typed Herdr protocol readiness fields to `doctor --json`.

@@ -21,6 +21,16 @@ sheprd doctor
 sheprd list
 ```
 
+For automation or troubleshooting a Herdr/runtime mismatch, prefer:
+
+```bash
+sheprd doctor --json
+```
+
+Use the typed `herdr.protocol_ready`, `herdr.protocol`, `herdr.compatible`, and
+`herdr.socket` fields. Do not scrape the human `checks[].detail` string unless
+you are displaying it back to a person.
+
 When onboarding a fresh machine or unclear config, inspect the starter config
 without writing first:
 

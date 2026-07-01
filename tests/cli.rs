@@ -120,6 +120,11 @@ fn doctor_reports_herdr_protocol_and_socket() {
         .args(["doctor", "--json"])
         .assert()
         .success()
+        .stdout(predicate::str::contains("\"herdr\": {"))
+        .stdout(predicate::str::contains("\"running\": true"))
+        .stdout(predicate::str::contains("\"protocol\": \"14\""))
+        .stdout(predicate::str::contains("\"socket\": \"/tmp/herdr.sock\""))
+        .stdout(predicate::str::contains("\"protocol_ready\": true"))
         .stdout(predicate::str::contains("protocol=14"))
         .stdout(predicate::str::contains("socket=/tmp/herdr.sock"));
 }

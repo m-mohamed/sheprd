@@ -40,7 +40,8 @@ does not own.
 - **Workspace focus.** Create or focus the matching Herdr workspace without
   memorizing live workspace IDs.
 - **Doctor checks.** Verify Herdr, required tools, and Herdr server
-  protocol/socket readiness before you blame the wrong layer.
+  protocol/socket readiness before you blame the wrong layer. JSON output
+  exposes typed Herdr runtime fields for agents and scripts.
 - **Sample recipes.** Apply an explicit starter layout only when creating a
   fresh workspace.
 
@@ -160,6 +161,10 @@ sheprd connect my-project --json
 sheprd recipes --json
 sheprd show-config --json
 ```
+
+`sheprd doctor --json` includes a typed `herdr` block with server running state,
+version, protocol, compatibility, socket path, and `protocol_ready`. Agents
+should use that field instead of scraping human check details.
 
 `sheprd connect --json` reports the resolved project, selected agent, Herdr
 workspace label/id, whether it focused or created, recipe use, and whether an

@@ -18,6 +18,7 @@ sheprd connect <project-or-path> --json
 sheprd connect <project-or-path> --recipe agent-dev
 sheprd recipes
 sheprd doctor
+sheprd doctor --json
 sheprd show-config
 ```
 
@@ -28,6 +29,11 @@ Plain `connect` creates or focuses a workspace. Sample recipes are opt-in so
 project, selected agent, Herdr workspace label/id, whether the workspace was
 created or focused, recipe use, and attach status without launching an
 interactive Herdr client.
+
+`doctor --json` is the Herdr runtime readiness surface: it reports typed server
+running state, version, protocol, compatibility, socket path, and
+`protocol_ready` so agents can decide whether Herdr protocol automation is safe
+without scraping human details.
 
 `init` is the first-run bootstrap surface. It prints or writes a starter config,
 uses repeated `--root` values for discovery roots, and refuses to overwrite an

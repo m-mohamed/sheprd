@@ -40,7 +40,7 @@ Herdr checks these boxes:
 | Packaging | Install script, Homebrew, mise, Nix | Source installer added; Homebrew/mise/Nix deferred |
 | Docs site | Polished site and versioned docs | One-page site only |
 | Protocol/client depth | Socket API, protocol readiness, and agent skill | Agent skill present; `doctor` reports protocol/socket; socket client deferred |
-| Automation output | Agents can drive the tool without scraping prose | `connect --json` reports project/workspace/action/recipe/attach outcome |
+| Automation output | Agents can drive the tool without scraping prose | `connect --json` reports project/workspace/action/recipe/attach outcome; `doctor --json` exposes typed Herdr protocol readiness |
 
 ## Current Public Shape
 
@@ -91,6 +91,8 @@ sheprd connect my-project --recipe agent-dev
   an observable gate.
 - Added `connect --json` so agents and scripts can see whether Sheprd focused or
   created a Herdr workspace without launching an interactive client.
+- Added a typed `herdr` block to `doctor --json` so agents and future clients
+  can inspect runtime/protocol readiness without scraping human check details.
 - Added `just prelaunch-check`, `just metadata-smoke`, `just install-smoke`, and
   `just live-smoke` so public-prelaunch proof is executable instead of only
   written down.
