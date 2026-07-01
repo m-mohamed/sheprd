@@ -1,16 +1,14 @@
 #!/usr/bin/env sh
 set -eu
 
-subject="$(sed -n '1p' "$1")"
+subject="$(head -n 1 "$1")"
 
 case "$subject" in
-  Initial\ commit)
-    exit 0
-    ;;
-  feat:\ *|fix:\ *|docs:\ *|ci:\ *|chore:\ *|test:\ *|refactor:\ *|perf:\ *|release:\ *)
-    exit 0
-    ;;
+  "Initial commit") exit 0 ;;
 esac
 
-printf '%s\n' "error: use 'Initial commit' for the root commit or a conventional commit subject after that" >&2
-exit 1
+if ! printf '%s\n' "$subject" | grep -Eq '^(feat|fix|docs|test|refactor|perf|build|ci|chore|release)(\([a-z0-9._-]+\))?: [a-z0-9]'; then
+  printf '%s\n' "error: commit subject must be conventional, lowercase, and descriptive" >&2
+  printf '%s\n' "example: docs: clarify Herdr boundary" >&2
+  exit 1
+fi

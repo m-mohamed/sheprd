@@ -1,6 +1,7 @@
 # Public Launch Checklist
 
-Use this when `sheprd` is ready to leave private checkpoint mode.
+Use this only after Mohamed gives the explicit final ship gate and `sheprd` is
+ready to leave private checkpoint mode.
 
 ## Local Proof
 
@@ -40,6 +41,10 @@ git commit --amend -m "Initial commit"
 ```
 
 Do not rewrite history after the repository has public users.
+
+If the repository was briefly made public during private iteration, verify that
+the release, tag, release workflow artifacts, and seed discussions were removed
+before this checklist continues.
 
 ## Repository Setup
 

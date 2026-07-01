@@ -46,6 +46,16 @@ requests, and anything that would expand `sheprd` beyond the entry layer.
 
 ## Checks
 
+Install the repo hooks once in your clone:
+
+```bash
+just install-hooks
+```
+
+The pre-commit hook runs `cargo fmt --check`. The commit-msg hook keeps commit
+subjects conventional and lowercase so private prelaunch history is easier to
+review before the final public cleanup.
+
 ```bash
 just ci
 ```
@@ -69,3 +79,6 @@ feat: add recipe listing
 fix: avoid nested herdr attach
 docs: clarify launch model
 ```
+
+Do not tag, publish a release, or change repository visibility from a normal
+contribution. Public release is a maintainer gate.

@@ -20,7 +20,7 @@ Herdr checks these boxes:
 | Area | Herdr standard | sheprd status |
 | --- | --- | --- |
 | Product boundary | Runtime, workspaces, tabs, panes, persistence, remotes, keybindings, integrations, agent state | Defined: `sheprd` is the entry layer only |
-| Public README | Clear install, quick start, concepts, comparison, docs links | Present, source-first, needs real install once packaged |
+| Public README | Clear install, quick start, concepts, comparison, docs links | Improved, source-first, still needs final package/install decision |
 | Contributor guide | AI-use rule, issue/discussion routing, PR standards, checks | Present, modeled after Herdr |
 | Agent guide | Architecture and validation rules for coding agents | Present |
 | Changelog | Human-readable release notes | Present |
@@ -33,7 +33,7 @@ Herdr checks these boxes:
 | Issue templates | Repro-first bug reports | Added |
 | Discussion templates | Ideas and Q&A outside the bug queue | Added |
 | Release process | SemVer tags, release commits, release notes | Documented, not automated |
-| Release automation | Multi-platform builds and GitHub releases | Tag workflow added, unproven until public remote |
+| Release automation | Multi-platform builds and GitHub releases | Tag workflow added and privately smoke-tested; keep disabled by policy until final gate |
 | Packaging | Install script, Homebrew, mise, Nix | Source installer added; Homebrew/mise/Nix deferred |
 | Docs site | Polished site and versioned docs | One-page site only |
 | Protocol/client depth | Socket API, protocol readiness, and agent skill | Agent skill present; `doctor` reports protocol/socket; socket client deferred |
@@ -94,8 +94,9 @@ These should be handled before publishing a real public `v0.1.0`:
 4. Decide the public GitHub owner and update issue contact links if needed.
 5. Rewrite/squash local private history into one polished root commit named
    `Initial commit`.
-6. Run the release workflow once against the public remote.
-7. Add a real docs site if the one-page site becomes too small.
+6. Recreate release notes from `Unreleased`, then tag only after the final gate.
+7. Run the release workflow once against the approved public remote.
+8. Add a real docs site if the one-page site becomes too small.
 
 ## Deferred On Purpose
 

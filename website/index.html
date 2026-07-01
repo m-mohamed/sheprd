@@ -16,6 +16,7 @@
         --line: #26323d;
         --accent: #66e0c2;
         --accent-2: #8fb7ff;
+        --warn: #e7c46b;
       }
 
       * {
@@ -36,18 +37,52 @@
 
       .hero {
         position: relative;
-        min-height: 88vh;
+        min-height: 90vh;
         display: flex;
         align-items: center;
         overflow: hidden;
         border-bottom: 1px solid var(--line);
       }
 
+      nav {
+        position: absolute;
+        z-index: 4;
+        top: 0;
+        left: 0;
+        right: 0;
+        border-bottom: 1px solid rgba(38, 50, 61, 0.7);
+        background: rgba(7, 9, 12, 0.78);
+        backdrop-filter: blur(12px);
+      }
+
+      nav .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 60px;
+      }
+
+      .links {
+        display: flex;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: var(--accent);
+      }
+
       .copy {
         position: relative;
         z-index: 2;
         max-width: 720px;
-        padding: 72px 0;
+        padding: 112px 0 72px;
       }
 
       .brand {
@@ -97,6 +132,20 @@
 
       .prompt {
         color: var(--accent);
+      }
+
+      .signals {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 24px;
+      }
+
+      .signal {
+        border: 1px solid var(--line);
+        padding: 8px 10px;
+        color: var(--muted);
+        background: #0b1015;
       }
 
       .terminal {
@@ -197,6 +246,43 @@
         color: var(--muted);
       }
 
+      .matrix {
+        border: 1px solid var(--line);
+        background: #0c1116;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .row:last-child {
+        border-bottom: 0;
+      }
+
+      .cell {
+        padding: 14px 16px;
+        color: var(--muted);
+      }
+
+      .cell + .cell {
+        border-left: 1px solid var(--line);
+      }
+
+      .head .cell {
+        color: var(--text);
+        background: #0b1015;
+      }
+
+      .ok {
+        color: var(--accent);
+      }
+
+      .no {
+        color: var(--warn);
+      }
+
       .split {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -210,7 +296,20 @@
         overflow: auto;
       }
 
+      footer {
+        padding: 36px 0;
+        color: var(--muted);
+      }
+
       @media (max-width: 860px) {
+        nav .wrap,
+        .links {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 8px;
+          padding: 10px 0;
+        }
+
         .hero {
           min-height: 92vh;
         }
@@ -226,7 +325,8 @@
 
         .screen,
         .cards,
-        .split {
+        .split,
+        .row {
           grid-template-columns: 1fr;
         }
 
@@ -234,12 +334,31 @@
           border-right: 0;
           border-bottom: 1px solid var(--line);
         }
+
+        .cell + .cell {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
       }
     </style>
   </head>
   <body>
     <main>
       <div class="hero">
+        <nav>
+          <div class="wrap">
+            <a class="brand" href="#">
+              <img src="assets/sheprd-mark.svg" alt="" />
+              <span>sheprd</span>
+            </a>
+            <div class="links">
+              <a href="#install">install</a>
+              <a href="#quick-start">quick start</a>
+              <a href="#contract">contract</a>
+              <a href="https://herdr.dev/docs/">Herdr docs</a>
+            </div>
+          </div>
+        </nav>
         <div class="wrap">
           <div class="copy">
             <div class="brand">
@@ -250,6 +369,11 @@
             <p class="subtitle">Find the project, choose the agent, and connect to the right Herdr workspace.</p>
             <p class="tagline">Herdr owns the runtime. sheprd owns the way in.</p>
             <div class="command"><span class="prompt">&gt;</span><span>sheprd connect my-project</span></div>
+            <div class="signals">
+              <span class="signal">project discovery</span>
+              <span class="signal">agent lanes</span>
+              <span class="signal">Herdr CLI first</span>
+            </div>
           </div>
         </div>
 
@@ -306,6 +430,68 @@ created workspace with sample recipe</pre>
         </div>
       </section>
 
+      <section id="contract">
+        <div class="wrap">
+          <h2>One boundary.</h2>
+          <div class="matrix">
+            <div class="row head">
+              <div class="cell">Capability</div>
+              <div class="cell">Herdr</div>
+              <div class="cell">sheprd</div>
+            </div>
+            <div class="row">
+              <div class="cell">Runtime sessions</div>
+              <div class="cell ok">owns</div>
+              <div class="cell">uses</div>
+            </div>
+            <div class="row">
+              <div class="cell">Workspaces, tabs, panes</div>
+              <div class="cell ok">owns</div>
+              <div class="cell">creates and focuses through Herdr</div>
+            </div>
+            <div class="row">
+              <div class="cell">Project discovery</div>
+              <div class="cell no">not its job</div>
+              <div class="cell ok">owns</div>
+            </div>
+            <div class="row">
+              <div class="cell">Keybindings, remotes, persistence</div>
+              <div class="cell ok">owns</div>
+              <div class="cell no">does not own</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="install">
+        <div class="wrap split">
+          <div>
+            <h2>Source-first install.</h2>
+            <p class="subtitle">sheprd stays small while the public contract settles. Install Herdr separately, then install sheprd from source.</p>
+          </div>
+          <div class="codeblock">
+            <pre>git clone https://github.com/m-mohamed/sheprd
+cd sheprd
+scripts/install-local.sh</pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="quick-start">
+        <div class="wrap split">
+          <div>
+            <h2>Fast path.</h2>
+            <p class="subtitle">Check the machine, list projects, connect. Use a sample recipe only when you want sheprd to shape a fresh workspace.</p>
+          </div>
+          <div class="codeblock">
+            <pre>sheprd doctor
+sheprd list
+sheprd connect my-project
+sheprd connect my-project --recipe agent-dev</pre>
+          </div>
+        </div>
+      </section>
+
       <section>
         <div class="wrap split">
           <div>
@@ -318,6 +504,23 @@ Herdr : sheprd</pre>
           </div>
         </div>
       </section>
+
+      <section>
+        <div class="wrap split">
+          <div>
+            <h2>Agent-safe.</h2>
+            <p class="subtitle">Agents can use JSON output and no-attach mode without accidentally nesting Herdr clients or guessing live runtime IDs.</p>
+          </div>
+          <div class="codeblock">
+            <pre>sheprd doctor --json
+sheprd list --json
+sheprd connect my-project --no-attach</pre>
+          </div>
+        </div>
+      </section>
     </main>
+    <footer>
+      <div class="wrap">Herdr owns the runtime. sheprd owns the way in.</div>
+    </footer>
   </body>
 </html>

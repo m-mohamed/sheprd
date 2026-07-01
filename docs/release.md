@@ -2,6 +2,10 @@
 
 `sheprd` follows SemVer with git tags shaped as `v0.1.0`.
 
+The current state is private prelaunch. Do not create release tags, publish
+GitHub releases, or change repository visibility until the explicit final ship
+gate.
+
 ## Pre-Public Root Commit
 
 Before the project is published, the local checkpoint history can be rewritten.
@@ -20,6 +24,13 @@ Do not do this after the repository has public consumers.
 ```bash
 just check
 SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
+```
+
+Confirm there are no accidental release tags before the final gate:
+
+```bash
+git tag --list 'v*'
+gh release list -R m-mohamed/sheprd
 ```
 
 ## Prepare
@@ -49,3 +60,7 @@ SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
 
 Do not publish a release where CLI help, README, website, and changelog
 disagree.
+
+Do not publish a release unless the repository visibility, release tag, release
+notes, downloadable artifacts, discussions, and history cleanup have all been
+approved in the final ship gate.
