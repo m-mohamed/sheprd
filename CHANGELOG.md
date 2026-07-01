@@ -11,3 +11,4 @@
 - Added `init` to preview or write starter config safely.
 - Added prelaunch Just gates, a pull request template, and stronger agent
   maintainer guidance.
+- Strengthened CI and release workflow static smoke coverage.

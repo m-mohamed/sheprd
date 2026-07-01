@@ -23,6 +23,8 @@ Do not do this after the repository has public consumers.
 
 ```bash
 just check
+just metadata-smoke
+just install-smoke
 SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
 ```
 
@@ -60,6 +62,11 @@ gh release list -R m-mohamed/sheprd
 
 Do not publish a release where CLI help, README, website, and changelog
 disagree.
+
+Release artifacts should include the binary plus `README.md`, `LICENSE`,
+`CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `SKILL.md`, `justfile`,
+`docs/`, `scripts/`, and `website/` so users can inspect the same support
+surface that the README points at.
 
 Do not publish a release unless the repository visibility, release tag, release
 notes, downloadable artifacts, discussions, and history cleanup have all been

@@ -29,14 +29,14 @@ Herdr checks these boxes:
 | Local checks | `just ci`, formatting, lint, tests | Present |
 | Crate package | `cargo package` should verify cleanly | Present |
 | Git hooks | Pre-commit and commit-msg discipline | Present |
-| CI | GitHub Actions for fmt, clippy, tests | Present |
+| CI | GitHub Actions for fmt, clippy, tests, static CLI smoke, package, install, metadata | Strengthened |
 | Metadata smoke | Workflow/template YAML validation | `just metadata-smoke` |
 | Dependency updates | Dependabot for Cargo and GitHub Actions | Added |
 | Issue templates | Repro-first bug reports | Added |
 | PR template | Boundary, proof, docs, and contributor understanding | Added |
 | Discussion templates | Ideas and Q&A outside the bug queue | Added |
 | Release process | SemVer tags, release commits, release notes | Documented, not automated |
-| Release automation | Multi-platform builds and GitHub releases | Tag workflow added and privately smoke-tested; keep disabled by policy until final gate |
+| Release automation | Multi-platform builds and GitHub releases | Tag workflow added; static smoke/package checks and support-file artifacts are in place; keep disabled by policy until final gate |
 | Packaging | Install script, Homebrew, mise, Nix | Source installer added; Homebrew/mise/Nix deferred |
 | Docs site | Polished site and versioned docs | One-page site only |
 | Protocol/client depth | Socket API, protocol readiness, and agent skill | Agent skill present; `doctor` reports protocol/socket; socket client deferred |
@@ -96,6 +96,9 @@ sheprd connect my-project --recipe agent-dev
   written down.
 - Added `init` so users and agents can preview or write starter config without
   hand-authoring TOML.
+- Strengthened CI and release workflows so static CLI smoke, crate packaging,
+  install smoke, metadata validation, and release support files are checked
+  before public launch.
 
 ## Still Missing Before Public Release
 

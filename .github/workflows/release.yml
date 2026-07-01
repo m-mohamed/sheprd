@@ -49,11 +49,26 @@ jobs:
       - name: Build
         run: cargo build --release --locked
 
+      - name: CLI smoke
+        run: |
+          target/release/sheprd --help
+          target/release/sheprd init --help
+          target/release/sheprd init --print
+          target/release/sheprd init --print --json
+          target/release/sheprd connect --help
+          target/release/sheprd recipes
+          target/release/sheprd recipes --json
+          target/release/sheprd show-config
+
+      - name: Package crate
+        run: cargo package --locked
+
       - name: Package
         run: |
           mkdir -p "dist/${{ matrix.artifact }}"
           cp target/release/sheprd "dist/${{ matrix.artifact }}/sheprd"
-          cp README.md LICENSE CHANGELOG.md "dist/${{ matrix.artifact }}/"
+          cp README.md LICENSE CHANGELOG.md CONTRIBUTING.md AGENTS.md SKILL.md justfile "dist/${{ matrix.artifact }}/"
+          cp -R docs scripts website "dist/${{ matrix.artifact }}/"
           tar -czf "${{ matrix.artifact }}.tar.gz" -C dist "${{ matrix.artifact }}"
 
       - name: Upload artifact

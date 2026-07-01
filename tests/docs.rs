@@ -71,6 +71,35 @@ fn cargo_package_keeps_public_support_files() {
     }
 }
 
+#[test]
+fn github_workflows_enforce_public_smoke_surface() {
+    let root = repo_root();
+    let ci = fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("ci workflow");
+    let release =
+        fs::read_to_string(root.join(".github/workflows/release.yml")).expect("release workflow");
+
+    for needle in [
+        "target/release/sheprd init --print --json",
+        "cargo package --locked",
+        "scripts/install-local.sh",
+        "Validate GitHub metadata",
+    ] {
+        assert!(ci.contains(needle), "CI workflow is missing {needle}");
+    }
+
+    for needle in [
+        "target/release/sheprd init --print --json",
+        "cargo package --locked",
+        "CONTRIBUTING.md AGENTS.md SKILL.md justfile",
+        "cp -R docs scripts website",
+    ] {
+        assert!(
+            release.contains(needle),
+            "release workflow is missing {needle}"
+        );
+    }
+}
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }

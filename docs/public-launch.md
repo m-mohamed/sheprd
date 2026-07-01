@@ -91,6 +91,9 @@ before this checklist continues.
 
 5. Confirm release artifacts exist for Linux x86_64, macOS x86_64
    (`macos-15-intel`), and macOS aarch64.
+6. Confirm each release archive includes the binary plus README, license,
+   changelog, contributor docs, agent docs, `justfile`, `docs/`, `scripts/`,
+   and `website/`.
 
 ## Post-Launch
 

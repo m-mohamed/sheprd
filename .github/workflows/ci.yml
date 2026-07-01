@@ -31,3 +31,33 @@ jobs:
 
       - name: Test
         run: cargo test
+
+      - name: Build release binary
+        run: cargo build --release --locked
+
+      - name: CLI smoke
+        run: |
+          target/release/sheprd --help
+          target/release/sheprd init --help
+          target/release/sheprd init --print
+          target/release/sheprd init --print --json
+          target/release/sheprd connect --help
+          target/release/sheprd recipes
+          target/release/sheprd recipes --json
+          target/release/sheprd show-config
+
+      - name: Package crate
+        run: cargo package --locked
+
+      - name: Install smoke
+        run: |
+          SHEPRD_INSTALL_DIR="$RUNNER_TEMP/sheprd-install" scripts/install-local.sh
+          "$RUNNER_TEMP/sheprd-install/sheprd" --version
+
+      - name: Validate GitHub metadata
+        run: |
+          ruby -ryaml -e 'ARGV.each { |path| YAML.load_file(path); puts "ok #{path}" }' \
+            .github/workflows/*.yml \
+            .github/ISSUE_TEMPLATE/*.yml \
+            .github/DISCUSSION_TEMPLATE/*.yml \
+            .github/dependabot.yml
