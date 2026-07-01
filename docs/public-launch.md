@@ -23,6 +23,8 @@ Confirm:
 - README, website, CLI help, changelog, and release docs use the same language;
 - `agent-dev` is presented as a sample recipe, not default product policy;
 - `sheprd connect <project>` does not force panes, tabs, or commands;
+- recipes only shape newly created workspaces and do not rewrite existing live
+  Herdr panes;
 - `SKILL.md` tells agents to use `--no-attach` inside Herdr;
 - issue templates are bug-only and discussion templates handle ideas/Q&A;
 - no approval-gate workflow exists until public contributor volume justifies it.

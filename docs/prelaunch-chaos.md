@@ -31,14 +31,19 @@ target/release/sheprd doctor
 target/release/sheprd list
 target/release/sheprd connect "$PWD" --no-attach
 target/release/sheprd connect "$PWD" --recipe agent-dev --no-attach
+tmp_repo="$(mktemp -d /tmp/sheprd-recipe.XXXXXX)"
+git -C "$tmp_repo" init
+target/release/sheprd connect "$tmp_repo" --recipe agent-dev --no-attach
 ```
 
 Expected result:
 
 - `doctor` reports Herdr, Neovim, Lazygit, and the selected agent.
 - plain `connect` creates or focuses a workspace without forcing a layout.
-- `--recipe agent-dev` applies the sample layout only when explicitly requested.
-- repeated connects reuse the existing workspace instead of duplicating state.
+- `--recipe agent-dev` applies the sample layout only when it creates a fresh
+  workspace.
+- repeated connects reuse the existing workspace instead of duplicating state or
+  reshaping live panes.
 
 ## Failure Gates
 
