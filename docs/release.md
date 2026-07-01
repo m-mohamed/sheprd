@@ -64,9 +64,9 @@ Do not publish a release where CLI help, README, website, and changelog
 disagree.
 
 Release artifacts should include the binary plus `README.md`, `LICENSE`,
-`CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `SKILL.md`, `justfile`,
-`docs/`, `scripts/`, and `website/` so users can inspect the same support
-surface that the README points at.
+`CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `SKILL.md`,
+`agent-guide.md`, `justfile`, `docs/`, `scripts/`, and `website/` so users can
+inspect the same support surface that the README points at.
 
 Do not publish a release unless the repository visibility, release tag, release
 notes, downloadable artifacts, discussions, and history cleanup have all been

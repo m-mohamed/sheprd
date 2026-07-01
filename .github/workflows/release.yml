@@ -77,7 +77,7 @@ jobs:
         run: |
           mkdir -p "dist/${{ matrix.artifact }}"
           cp target/release/sheprd "dist/${{ matrix.artifact }}/sheprd"
-          cp README.md LICENSE CHANGELOG.md CONTRIBUTING.md AGENTS.md SKILL.md justfile "dist/${{ matrix.artifact }}/"
+          cp README.md LICENSE CHANGELOG.md CONTRIBUTING.md AGENTS.md SKILL.md agent-guide.md justfile "dist/${{ matrix.artifact }}/"
           cp -R docs scripts website "dist/${{ matrix.artifact }}/"
           tar -czf "${{ matrix.artifact }}.tar.gz" -C dist "${{ matrix.artifact }}"
 

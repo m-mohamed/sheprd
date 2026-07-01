@@ -96,11 +96,42 @@ fn command_reference_covers_public_cli_surface() {
 }
 
 #[test]
+fn agent_guide_covers_teaching_surface() {
+    let root = repo_root();
+    let guide = fs::read_to_string(root.join("agent-guide.md")).expect("agent guide");
+    let readme = fs::read_to_string(root.join("README.md")).expect("readme");
+    let skill = fs::read_to_string(root.join("SKILL.md")).expect("skill");
+
+    assert!(
+        readme.contains("[`agent-guide.md`](agent-guide.md)"),
+        "README must link to the agent guide"
+    );
+    assert!(
+        skill.contains("agent-guide.md"),
+        "SKILL.md must point agents at the teaching guide"
+    );
+
+    for needle in [
+        "This guide is different from `SKILL.md`",
+        "Sheprd is a Herdr companion, not a terminal runtime.",
+        "sheprd doctor --json",
+        "sheprd connect my-project --no-attach",
+        "herdr.protocol_ready",
+        "Do not teach Sheprd as",
+        "sample recipe",
+        "Herdr workspace, tab, or pane ids",
+    ] {
+        assert!(guide.contains(needle), "agent guide is missing {needle}");
+    }
+}
+
+#[test]
 fn cargo_package_keeps_public_support_files() {
     let manifest = fs::read_to_string(repo_root().join("Cargo.toml")).expect("cargo manifest");
 
     for needle in [
         "AGENTS.md",
+        "agent-guide.md",
         "scripts/**/*.sh",
         "website/index.html",
         "website/assets/sheprd-mark.svg",
@@ -136,7 +167,7 @@ fn github_workflows_enforce_public_smoke_surface() {
         "JSON failure smoke",
         "definitely-not-a-project",
         "cargo package --locked",
-        "CONTRIBUTING.md AGENTS.md SKILL.md justfile",
+        "CONTRIBUTING.md AGENTS.md SKILL.md agent-guide.md justfile",
         "cp -R docs scripts website",
     ] {
         assert!(
@@ -156,6 +187,7 @@ fn doc_files(root: &Path) -> Vec<PathBuf> {
         root.join("CONTRIBUTING.md"),
         root.join("SKILL.md"),
         root.join("AGENTS.md"),
+        root.join("agent-guide.md"),
         root.join(".github/pull_request_template.md"),
         root.join("website/index.html"),
     ];

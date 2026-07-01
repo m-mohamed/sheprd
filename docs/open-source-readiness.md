@@ -24,7 +24,7 @@ Herdr checks these boxes:
 | Command reference | Dedicated command behavior and JSON contract docs | Added |
 | First-run setup | User can preview/write starter config safely | `sheprd init --print`, `sheprd init`, `--force` guard |
 | Contributor guide | AI-use rule, issue/discussion routing, PR standards, checks | Present, modeled after Herdr |
-| Agent guide | Architecture and validation rules for coding agents | Present |
+| Agent guide | Architecture and validation rules for coding agents | `SKILL.md` plus teaching/troubleshooting guide |
 | Changelog | Human-readable release notes | Present |
 | License | Public OSS license | Present |
 | Local checks | `just ci`, formatting, lint, tests | Present |
@@ -90,6 +90,8 @@ sheprd connect my-project --recipe agent-dev
 - Added a public launch checklist.
 - Added a source installer and tag-based release workflow.
 - Added `SKILL.md` for agent-facing usage boundaries.
+- Added `agent-guide.md` for agents helping humans learn, set up, or
+  troubleshoot Sheprd.
 - Added Herdr protocol/socket readiness to `doctor` so future native API work has
   an observable gate.
 - Added `connect --json` so agents and scripts can see whether Sheprd focused or

@@ -23,8 +23,8 @@ Then run the live Herdr checks in `docs/prelaunch-chaos.md`.
 Confirm:
 
 - no private machine paths in docs, website, tests, or workflow files;
-- README, command reference, website, CLI help, changelog, and release docs use
-  the same language;
+- README, command reference, agent guide, website, CLI help, changelog, and
+  release docs use the same language;
 - `sheprd init --print` previews starter config and `sheprd init` refuses to
   overwrite an existing config without `--force`;
 - `agent-dev` is presented as a sample recipe, not default product policy;
@@ -93,8 +93,8 @@ before this checklist continues.
 5. Confirm release artifacts exist for Linux x86_64, macOS x86_64
    (`macos-15-intel`), and macOS aarch64.
 6. Confirm each release archive includes the binary plus README, license,
-   changelog, contributor docs, agent docs, `justfile`, `docs/`, `scripts/`,
-   and `website/`.
+   changelog, contributor docs, agent docs, agent guide, `justfile`, `docs/`,
+   `scripts/`, and `website/`.
 
 ## Post-Launch
 

@@ -20,6 +20,7 @@ include = [
   "CHANGELOG.md",
   "CONTRIBUTING.md",
   "SKILL.md",
+  "agent-guide.md",
   "justfile",
   "Cargo.toml",
   "Cargo.lock",

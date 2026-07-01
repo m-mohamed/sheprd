@@ -258,12 +258,16 @@ check Herdr status, protocol compatibility, and socket location.
 - [Prelaunch chaos checklist](docs/prelaunch-chaos.md)
 - [Release process](docs/release.md)
 - [`SKILL.md`](SKILL.md): agent-facing usage contract
+- [`agent-guide.md`](agent-guide.md): agent-facing teaching and troubleshooting
+  guide
 
 ## Agent Instructions
 
 If you are an AI agent helping in this repository, read
 [`AGENTS.md`](AGENTS.md) before making changes and read
-[`CONTRIBUTING.md`](CONTRIBUTING.md) before opening issues or PRs.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) before opening issues or PRs. If you are
+helping a human learn or troubleshoot Sheprd, read
+[`agent-guide.md`](agent-guide.md).
 
 ## Development
 

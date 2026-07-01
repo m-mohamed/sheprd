@@ -18,3 +18,5 @@
 - Added structured JSON error envelopes for runtime failures after argument
   parsing.
 - Added JSON failure smoke checks to local and GitHub prelaunch gates.
+- Added `agent-guide.md` for agents helping humans learn, set up, or
+  troubleshoot Sheprd.
