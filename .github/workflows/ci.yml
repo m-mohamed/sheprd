@@ -46,6 +46,16 @@ jobs:
           target/release/sheprd recipes --json
           target/release/sheprd show-config
 
+      - name: JSON failure smoke
+        run: |
+          if target/release/sheprd connect definitely-not-a-project --json >"$RUNNER_TEMP/sheprd-json-error.out" 2>"$RUNNER_TEMP/sheprd-json-error.err"; then
+            exit 1
+          fi
+          test ! -s "$RUNNER_TEMP/sheprd-json-error.out"
+          grep '"ok": false' "$RUNNER_TEMP/sheprd-json-error.err"
+          grep '"exit_code": 2' "$RUNNER_TEMP/sheprd-json-error.err"
+          grep "definitely-not-a-project" "$RUNNER_TEMP/sheprd-json-error.err"
+
       - name: Package crate
         run: cargo package --locked
 

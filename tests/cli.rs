@@ -171,9 +171,62 @@ fn connect_existing_workspace_focuses_without_create() {
         .stdout(predicate::str::contains("agent: codex"))
         .stdout(predicate::str::contains("attached: no"));
 
-    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    let log = std::fs::read_to_string(fixture.log()).unwrap_or_default();
     assert!(log.contains("workspace focus w_existing"));
     assert!(!log.contains("workspace create"));
+}
+
+#[test]
+fn connect_json_failure_uses_error_envelope_without_mutating_herdr() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    fixture.fake_tool("codex");
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["connect", "definitely-not-a-project", "--json"])
+        .assert()
+        .failure()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::contains("\"ok\": false"))
+        .stderr(predicate::str::contains("\"kind\": \"message\""))
+        .stderr(predicate::str::contains(
+            "project 'definitely-not-a-project' was not found",
+        ))
+        .stderr(predicate::str::contains("\"exit_code\": 2"));
+
+    let log = std::fs::read_to_string(fixture.log()).unwrap_or_default();
+    assert!(!log.contains("workspace create"));
+    assert!(!log.contains("workspace focus"));
+}
+
+#[test]
+fn connect_rejects_existing_non_git_path_before_touching_herdr() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    fixture.fake_tool("codex");
+    fixture.fake_herdr(None);
+    let not_repo = fixture.root.join("not-a-repo");
+    std::fs::create_dir_all(&not_repo).expect("not repo");
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["connect", &not_repo.display().to_string(), "--json"])
+        .assert()
+        .failure()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::contains("\"ok\": false"))
+        .stderr(predicate::str::contains(
+            "project path is not a git repository",
+        ))
+        .stderr(predicate::str::contains("\"exit_code\": 2"));
+
+    let log = std::fs::read_to_string(fixture.log()).unwrap_or_default();
+    assert!(!log.contains("workspace create"));
+    assert!(!log.contains("workspace focus"));
 }
 
 #[test]

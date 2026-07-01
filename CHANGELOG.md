@@ -15,3 +15,6 @@
 - Added typed Herdr protocol readiness fields to `doctor --json`.
 - Added concise human outcome output for non-JSON `connect`.
 - Added a dedicated command reference.
+- Added structured JSON error envelopes for runtime failures after argument
+  parsing.
+- Added JSON failure smoke checks to local and GitHub prelaunch gates.

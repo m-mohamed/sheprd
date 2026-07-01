@@ -18,6 +18,7 @@ target/release/sheprd recipes
 target/release/sheprd recipes --json
 target/release/sheprd show-config
 target/release/sheprd connect "$PWD" --json
+target/release/sheprd connect definitely-not-a-project --json
 SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
 /tmp/sheprd-install/sheprd --version
 ```
@@ -27,7 +28,8 @@ emits valid starter config without writing, and output matches README, command
 reference, website, and changelog language. `cargo package` should also verify
 the crate package without warnings. `connect --json` must report the project,
 selected agent, Herdr workspace label/id, action, recipe status, and
-`attached: false`.
+`attached: false`. Runtime failures after argument parsing must emit a JSON
+error envelope on stderr.
 
 The shortcut for the full local, install, and live smoke pass is:
 
@@ -81,6 +83,7 @@ SHEPRD_CONFIG="$tmp_home/config.toml" target/release/sheprd init
 
 Expected result: failures are understandable and do not mutate Herdr state.
 The second `init` must fail unless `--force` is explicit.
+With `--json`, runtime failures should use the structured error envelope.
 
 ## Terminal Gates
 

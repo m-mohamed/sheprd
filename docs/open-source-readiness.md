@@ -41,7 +41,7 @@ Herdr checks these boxes:
 | Packaging | Install script, Homebrew, mise, Nix | Source installer added; Homebrew/mise/Nix deferred |
 | Docs site | Polished site and versioned docs | One-page site only |
 | Protocol/client depth | Socket API, protocol readiness, and agent skill | Agent skill present; `doctor` reports protocol/socket; socket client deferred |
-| Automation output | Agents can drive the tool without scraping prose | `connect --json` reports project/workspace/action/recipe/attach outcome; `doctor --json` exposes typed Herdr protocol readiness |
+| Automation output | Agents can drive the tool without scraping prose | `connect --json` reports project/workspace/action/recipe/attach outcome; `doctor --json` exposes typed Herdr protocol readiness; runtime failures emit a JSON error envelope |
 
 ## Current Public Shape
 
@@ -96,14 +96,15 @@ sheprd connect my-project --recipe agent-dev
   created a Herdr workspace without launching an interactive client.
 - Added a typed `herdr` block to `doctor --json` so agents and future clients
   can inspect runtime/protocol readiness without scraping human check details.
+- Added a JSON error envelope for runtime failures after argument parsing.
 - Added `just prelaunch-check`, `just metadata-smoke`, `just install-smoke`, and
   `just live-smoke` so public-prelaunch proof is executable instead of only
   written down.
 - Added `init` so users and agents can preview or write starter config without
   hand-authoring TOML.
-- Strengthened CI and release workflows so static CLI smoke, crate packaging,
-  install smoke, metadata validation, and release support files are checked
-  before public launch.
+- Strengthened CI and release workflows so static CLI smoke, JSON failure
+  smoke, crate packaging, install smoke, metadata validation, and release
+  support files are checked before public launch.
 
 ## Still Missing Before Public Release
 

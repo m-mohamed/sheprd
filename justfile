@@ -2,7 +2,7 @@
 
 ci: lint test
 
-check: ci chaos-smoke package
+check: ci chaos-smoke failure-smoke package
 
 prelaunch-check project=".":
     just check
@@ -34,6 +34,14 @@ chaos-smoke: build
     target/release/sheprd recipes
     target/release/sheprd recipes --json
     target/release/sheprd show-config
+
+failure-smoke: build
+    rm -f /tmp/sheprd-json-error.out /tmp/sheprd-json-error.err
+    if target/release/sheprd connect definitely-not-a-project --json >/tmp/sheprd-json-error.out 2>/tmp/sheprd-json-error.err; then exit 1; fi
+    test ! -s /tmp/sheprd-json-error.out
+    grep '"ok": false' /tmp/sheprd-json-error.err
+    grep '"exit_code": 2' /tmp/sheprd-json-error.err
+    grep "definitely-not-a-project" /tmp/sheprd-json-error.err
 
 package:
     cargo package --allow-dirty

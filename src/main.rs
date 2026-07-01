@@ -8,23 +8,29 @@ mod recipe;
 use clap::{CommandFactory, Parser};
 use cli::{Cli, Command};
 use config::Config;
-use error::Result;
+use error::{Result, SheprdError};
 use recipe::{Agent, Recipe, RecipeName};
 use serde::Serialize;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-    match run() {
+    let cli = Cli::parse();
+    let json = cli.json;
+
+    match run(cli) {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("error: {error}");
+            if json {
+                print_json_error(&error);
+            } else {
+                eprintln!("error: {error}");
+            }
             ExitCode::from(error.exit_code())
         }
     }
 }
 
-fn run() -> Result<ExitCode> {
-    let cli = Cli::parse();
+fn run(cli: Cli) -> Result<ExitCode> {
     let Some(command) = cli.command.clone() else {
         let mut command = Cli::command();
         command.print_help()?;
@@ -467,4 +473,33 @@ fn find_on_path(name: &str) -> Option<std::path::PathBuf> {
 fn print_json<T: Serialize>(value: &T) -> Result<()> {
     println!("{}", serde_json::to_string_pretty(value)?);
     Ok(())
+}
+
+#[derive(Serialize)]
+struct ErrorOutput {
+    ok: bool,
+    error: ErrorBody,
+}
+
+#[derive(Serialize)]
+struct ErrorBody {
+    kind: &'static str,
+    message: String,
+    exit_code: u8,
+}
+
+fn print_json_error(error: &SheprdError) {
+    let output = ErrorOutput {
+        ok: false,
+        error: ErrorBody {
+            kind: error.kind(),
+            message: error.to_string(),
+            exit_code: error.exit_code(),
+        },
+    };
+
+    match serde_json::to_string_pretty(&output) {
+        Ok(json) => eprintln!("{json}"),
+        Err(json_error) => eprintln!("error: failed to serialize error response: {json_error}"),
+    }
 }

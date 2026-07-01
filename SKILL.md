@@ -70,6 +70,10 @@ workspace label/id, whether the workspace was focused or created, recipe use,
 and whether an interactive Herdr client was attached. JSON mode does not launch
 an interactive Herdr client.
 
+When a command fails after argument parsing, JSON mode emits a structured error
+envelope on stderr. Read `error.kind`, `error.message`, and `error.exit_code`
+instead of scraping human `error:` lines.
+
 ## Sample Recipes
 
 Recipes are optional samples, not product policy.

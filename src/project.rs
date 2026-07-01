@@ -100,6 +100,12 @@ fn ignored(path: &Path, config: &Config) -> bool {
 
 fn project_from_path(path: &Path) -> Result<Project> {
     let path = path.canonicalize()?;
+    if !path.join(".git").exists() {
+        return Err(SheprdError::Message(format!(
+            "project path is not a git repository: {}",
+            path.display()
+        )));
+    }
     let name = path
         .file_name()
         .and_then(|name| name.to_str())

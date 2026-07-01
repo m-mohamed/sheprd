@@ -82,7 +82,11 @@ fn command_reference_covers_public_cli_surface() {
         "`herdr.protocol_ready`",
         "`workspace_id`",
         "`attached`",
+        "\"ok\": false",
+        "\"exit_code\": 2",
+        "`error.kind`",
         "does not reshape live",
+        "not an arbitrary directory",
     ] {
         assert!(
             reference.contains(needle),
@@ -118,6 +122,8 @@ fn github_workflows_enforce_public_smoke_surface() {
 
     for needle in [
         "target/release/sheprd init --print --json",
+        "JSON failure smoke",
+        "definitely-not-a-project",
         "cargo package --locked",
         "scripts/install-local.sh",
         "Validate GitHub metadata",
@@ -127,6 +133,8 @@ fn github_workflows_enforce_public_smoke_surface() {
 
     for needle in [
         "target/release/sheprd init --print --json",
+        "JSON failure smoke",
+        "definitely-not-a-project",
         "cargo package --locked",
         "CONTRIBUTING.md AGENTS.md SKILL.md justfile",
         "cp -R docs scripts website",

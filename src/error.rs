@@ -19,6 +19,16 @@ pub enum SheprdError {
 }
 
 impl SheprdError {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Message(_) => "message",
+            Self::Io(_) => "io",
+            Self::Json(_) => "json",
+            Self::Toml(_) => "toml",
+            Self::MissingHome => "missing_home",
+        }
+    }
+
     pub fn exit_code(&self) -> u8 {
         match self {
             Self::Message(_) => 2,

@@ -39,6 +39,10 @@ running state, version, protocol, compatibility, socket path, and
 `protocol_ready` so agents can decide whether Herdr protocol automation is safe
 without scraping human details.
 
+JSON failure output is also part of the automation surface. Runtime failures
+after argument parsing should emit `ok: false`, `error.kind`, `error.message`,
+and `error.exit_code` on stderr.
+
 `init` is the first-run bootstrap surface. It prints or writes a starter config,
 uses repeated `--root` values for discovery roots, and refuses to overwrite an
 existing config unless `--force` is explicit.

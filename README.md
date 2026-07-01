@@ -168,6 +168,10 @@ sheprd show-config --json
 version, protocol, compatibility, socket path, and `protocol_ready`. Agents
 should use that field instead of scraping human check details.
 
+When a command fails after argument parsing, `--json` emits a structured error
+envelope on stderr with `ok: false`, `error.kind`, `error.message`, and
+`error.exit_code`.
+
 `sheprd connect --json` reports the resolved project, selected agent, Herdr
 workspace label/id, whether it focused or created, recipe use, and whether an
 interactive Herdr client was attached. JSON mode does not launch an interactive

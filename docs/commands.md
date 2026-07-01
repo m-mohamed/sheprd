@@ -24,6 +24,23 @@ Supported agents are `pi`, `droid`, `claude`, `codex`, `hermes`, and
 `--json` is for scripts and agents. JSON mode must not launch an interactive
 Herdr client.
 
+When a command fails after argument parsing, `--json` emits a structured error
+envelope on stderr:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "kind": "message",
+    "message": "project 'missing' was not found",
+    "exit_code": 2
+  }
+}
+```
+
+Agents should consume `error.kind`, `error.message`, and `error.exit_code`.
+Successful JSON responses keep their command-specific shape.
+
 `--no-attach` creates or focuses Herdr state without attaching a Herdr client.
 Use it from inside Herdr or from automation.
 
@@ -176,7 +193,8 @@ explicit project mappings Sheprd is actually using.
 ## Failure Behavior
 
 Failures should be understandable and should not mutate Herdr state when the
-project cannot be resolved or the target path is not a git repository.
+project cannot be resolved or the target path is not a git repository. Existing
+paths must contain `.git`; pass a repository root, not an arbitrary directory.
 
 Examples:
 
@@ -188,3 +206,6 @@ sheprd init
 ```
 
 The second `init` should fail unless `--force` is explicit.
+
+With `--json`, runtime failures use the structured error envelope above. Clap
+argument errors remain Clap's standard human help output.
