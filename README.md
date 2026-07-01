@@ -7,6 +7,7 @@
 <p align="center">
   <a href="#install">install</a> ·
   <a href="#quick-start">quick start</a> ·
+  <a href="docs/commands.md">commands</a> ·
   <a href="#configuration">configuration</a> ·
   <a href="#herdr-contract">Herdr contract</a> ·
   <a href="#development">development</a>
@@ -246,6 +247,7 @@ check Herdr status, protocol compatibility, and socket location.
 
 ## Docs
 
+- [Command reference](docs/commands.md)
 - [Product foundation](docs/product-foundation.md)
 - [Herdr precedent](docs/herdr-precedent.md)
 - [Open-source readiness](docs/open-source-readiness.md)

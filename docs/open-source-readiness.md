@@ -21,6 +21,7 @@ Herdr checks these boxes:
 | --- | --- | --- |
 | Product boundary | Runtime, workspaces, tabs, panes, persistence, remotes, keybindings, integrations, agent state | Defined: `sheprd` is the entry layer only |
 | Public README | Clear install, quick start, concepts, comparison, docs links | Improved, source-first, still needs final package/install decision |
+| Command reference | Dedicated command behavior and JSON contract docs | Added |
 | First-run setup | User can preview/write starter config safely | `sheprd init --print`, `sheprd init`, `--force` guard |
 | Contributor guide | AI-use rule, issue/discussion routing, PR standards, checks | Present, modeled after Herdr |
 | Agent guide | Architecture and validation rules for coding agents | Present |
@@ -83,6 +84,8 @@ sheprd connect my-project --recipe agent-dev
   contributor understanding.
 - Added `clippy.toml` for Rust lint discipline.
 - Added this readiness scorecard.
+- Added a command reference covering human output, JSON output, Herdr boundary,
+  and failure behavior.
 - Added a prelaunch chaos checklist.
 - Added a public launch checklist.
 - Added a source installer and tag-based release workflow.
@@ -107,7 +110,8 @@ sheprd connect my-project --recipe agent-dev
 These should be handled before publishing a real public `v0.1.0`:
 
 1. Run the full prelaunch chaos checklist.
-2. Confirm README, CLI help, website, changelog, and docs agree.
+2. Confirm README, CLI help, website, changelog, command reference, and docs
+   agree.
 3. Compare Sheprd's README, AGENTS.md, SKILL.md, contribution guide, issue
    templates, discussions, release notes, and install docs against Herdr's
    public surfaces.

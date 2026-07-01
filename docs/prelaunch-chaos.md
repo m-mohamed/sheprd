@@ -23,10 +23,11 @@ SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
 ```
 
 Expected result: commands succeed, help text says sample recipes, `init --print`
-emits valid starter config without writing, and output matches README, website,
-and changelog language. `cargo package` should also verify the crate package
-without warnings. `connect --json` must report the project, selected agent,
-Herdr workspace label/id, action, recipe status, and `attached: false`.
+emits valid starter config without writing, and output matches README, command
+reference, website, and changelog language. `cargo package` should also verify
+the crate package without warnings. `connect --json` must report the project,
+selected agent, Herdr workspace label/id, action, recipe status, and
+`attached: false`.
 
 The shortcut for the full local, install, and live smoke pass is:
 
@@ -102,6 +103,7 @@ rg -n --glob '!docs/prelaunch-chaos.md' "sample recipe|agent-dev|Herdr owns|shep
 ```
 
 Expected result: public language says `sample recipe`, not default layout policy.
+The command list in `docs/commands.md` should match the CLI help and README.
 
 ## History Gate
 

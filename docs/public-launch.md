@@ -23,7 +23,8 @@ Then run the live Herdr checks in `docs/prelaunch-chaos.md`.
 Confirm:
 
 - no private machine paths in docs, website, tests, or workflow files;
-- README, website, CLI help, changelog, and release docs use the same language;
+- README, command reference, website, CLI help, changelog, and release docs use
+  the same language;
 - `sheprd init --print` previews starter config and `sheprd init` refuses to
   overwrite an existing config without `--force`;
 - `agent-dev` is presented as a sample recipe, not default product policy;

@@ -54,6 +54,44 @@ fn website_keeps_the_public_surface() {
 }
 
 #[test]
+fn command_reference_covers_public_cli_surface() {
+    let root = repo_root();
+    let reference = fs::read_to_string(root.join("docs/commands.md")).expect("command reference");
+    let readme = fs::read_to_string(root.join("README.md")).expect("readme");
+    let skill = fs::read_to_string(root.join("SKILL.md")).expect("skill");
+
+    assert!(
+        readme.contains("[Command reference](docs/commands.md)"),
+        "README must link to the command reference"
+    );
+    assert!(
+        skill.contains("docs/commands.md"),
+        "SKILL.md must point agents at the command contract"
+    );
+
+    for needle in [
+        "## Global Options",
+        "## `init`",
+        "## `list`",
+        "## `connect`",
+        "## `connect --recipe agent-dev`",
+        "## `recipes`",
+        "## `doctor`",
+        "## `show-config`",
+        "## Failure Behavior",
+        "`herdr.protocol_ready`",
+        "`workspace_id`",
+        "`attached`",
+        "does not reshape live",
+    ] {
+        assert!(
+            reference.contains(needle),
+            "command reference is missing {needle}"
+        );
+    }
+}
+
+#[test]
 fn cargo_package_keeps_public_support_files() {
     let manifest = fs::read_to_string(repo_root().join("Cargo.toml")).expect("cargo manifest");
 

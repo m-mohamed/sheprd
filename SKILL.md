@@ -108,4 +108,5 @@ For this repository:
 just check
 ```
 
+Use `docs/commands.md` as the command contract when changing CLI behavior.
 Before public release, also follow `docs/prelaunch-chaos.md`.
