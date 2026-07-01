@@ -74,8 +74,8 @@ Do not rewrite history after the repository has public users.
    git push origin main --tags
    ```
 
-5. Confirm release artifacts exist for Linux x86_64, macOS x86_64, and macOS
-   aarch64.
+5. Confirm release artifacts exist for Linux x86_64, macOS x86_64
+   (`macos-15-intel`), and macOS aarch64.
 
 ## Post-Launch
 
