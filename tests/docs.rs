@@ -66,7 +66,7 @@ fn website_docs_page_keeps_public_docs_surface() {
         "Sheprd docs.",
         "Start with the boundary.",
         "sheprd connect my-project --json",
-        "Do not run release steps before the explicit final ship gate.",
+        "Do not run release steps before the explicit maintainer release gate.",
         "../docs/commands.md",
         "../SKILL.md",
         "../agent-guide.md",

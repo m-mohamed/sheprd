@@ -110,13 +110,10 @@ The command list in `docs/commands.md` should match the CLI help and README.
 
 ## History Gate
 
-Do not treat the current private checkpoint history as public history. After the
-chaos checklist passes, rebuild the public root commit intentionally:
+This historical first-launch step only applied before the first public push.
+Do not rewrite public history after users exist.
 
 ```bash
 git reset --soft "$(git rev-list --max-parents=0 HEAD)"
 git commit --amend -m "Initial commit"
 ```
-
-Only do this before the repository is public or before any shared remote depends
-on the local commit history.

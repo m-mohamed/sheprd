@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.1.0 - 2026-07-03
+
 ### Added
 
 - Started `sheprd` as a fresh Herdr-native smart session manager.

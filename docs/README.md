@@ -2,7 +2,7 @@
 
 Sheprd is a small Herdr companion. These docs are intentionally narrow: they
 explain how to enter the right Herdr workspace, how agents should consume the
-CLI, and which gates must pass before public launch.
+CLI, and which gates must pass before a release.
 
 ## Start Here
 
@@ -24,9 +24,8 @@ CLI, and which gates must pass before public launch.
 
 - [Open-source readiness](open-source-readiness.md): current gap scorecard.
 - [Prelaunch chaos checklist](prelaunch-chaos.md): final local and live proof.
-- [Public launch checklist](public-launch.md): only after the maintainer gives
-  the explicit final ship gate.
-- [Release process](release.md): private prelaunch release discipline.
+- [Public launch checklist](public-launch.md): launch and release gate checks.
+- [Release process](release.md): release discipline and artifact expectations.
 
 ## Future Notes
 

@@ -53,8 +53,7 @@ just install-hooks
 ```
 
 The pre-commit hook runs `cargo fmt --check`. The commit-msg hook keeps commit
-subjects conventional and lowercase so private prelaunch history is easier to
-review before the final public cleanup.
+subjects conventional and lowercase so history stays easy to review.
 
 ```bash
 just ci

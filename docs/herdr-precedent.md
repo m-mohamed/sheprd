@@ -31,7 +31,8 @@ What we mirror:
 - `just ci`;
 - GitHub Actions for fmt, clippy, and tests;
 - source installer script;
-- tag-shaped multi-platform release workflow kept behind the final ship gate;
+- tag-shaped multi-platform release workflow kept behind the maintainer release
+  gate;
 - issue and discussion templates;
 - docs that explain product boundaries.
 - source-backed public docs that do not depend on maintainer private workflow.

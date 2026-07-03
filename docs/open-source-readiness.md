@@ -1,13 +1,13 @@
 # Open Source Readiness
 
-This document tracks the gap between Herdr as a mature open-source project and
-`sheprd` as a young companion project.
+This document tracks the standard that keeps `sheprd` aligned with Herdr-quality
+open-source expectations.
 
 The goal is not to clone Herdr. The goal is to meet the same standard of clarity:
 clear product boundary, reproducible checks, contributor expectations, release
 discipline, and documentation that matches the shipped behavior.
 
-For Sheprd's public launch, Herdr is the closest benchmark. It has the same
+For Sheprd, Herdr is the closest benchmark. It has the same
 terminal-agent audience and roughly the same stack shape, so the useful lesson is
 not to copy features; it is to copy public trust signals: direct README, focused
 docs, agent instructions, contribution rules, release discipline, install paths,
@@ -20,7 +20,7 @@ Herdr checks these boxes:
 | Area | Herdr standard | sheprd status |
 | --- | --- | --- |
 | Product boundary | Runtime, workspaces, tabs, panes, persistence, remotes, keybindings, integrations, agent state | Defined: `sheprd` is the entry layer only |
-| Public README | Clear install, quick start, concepts, comparison, docs links | Improved, source-first, still needs final package/install decision |
+| Public README | Clear install, quick start, concepts, comparison, docs links | Present, source-first install |
 | Command reference | Dedicated command behavior and JSON contract docs | Added |
 | First-run setup | User can preview/write starter config safely | `sheprd init --print`, `sheprd init`, `--force` guard |
 | Contributor guide | AI-use rule, issue/discussion routing, PR standards, checks | Present, modeled after Herdr |
@@ -36,8 +36,8 @@ Herdr checks these boxes:
 | Issue templates | Repro-first bug reports | Added |
 | PR template | Boundary, proof, docs, and contributor understanding | Added |
 | Discussion templates | Ideas and Q&A outside the bug queue | Added |
-| Release process | SemVer tags, release commits, release notes | Documented, not automated |
-| Release automation | Multi-platform builds and GitHub releases | Tag workflow added; static smoke/package checks and support-file artifacts are in place; keep disabled by policy until final gate |
+| Release process | SemVer tags, release commits, release notes | Documented |
+| Release automation | Multi-platform builds and GitHub releases | Tag workflow added with static smoke/package checks and support-file artifacts |
 | Packaging | Install script, Homebrew, mise, Nix | Source installer added; Homebrew/mise/Nix deferred |
 | Docs site | Polished site and versioned docs | One-page site plus HTML docs landing and markdown docs index |
 | Protocol/client depth | Socket API, protocol readiness, and agent skill | Agent skill present; `doctor` reports protocol/socket; socket client deferred |
@@ -45,7 +45,7 @@ Herdr checks these boxes:
 
 ## Current Public Shape
 
-`sheprd` should launch publicly as:
+`sheprd` presents publicly as:
 
 - a Herdr companion, not a Herdr replacement;
 - a first-run config bootstrapper;
@@ -106,17 +106,17 @@ sheprd connect my-project --recipe agent-dev
 - Added contributor support files to the packaged source and release archives,
   including GitHub templates and local hooks referenced by `just install-hooks`.
 - Added `just prelaunch-check`, `just metadata-smoke`, `just install-smoke`, and
-  `just live-smoke` so public-prelaunch proof is executable instead of only
-  written down.
+  `just live-smoke` so release proof is executable instead of only written
+  down.
 - Added `init` so users and agents can preview or write starter config without
   hand-authoring TOML.
 - Strengthened CI and release workflows so static CLI smoke, JSON failure
   smoke, crate packaging, install smoke, metadata validation, and release
-  support files are checked before public launch.
+  support files are checked before release.
 
-## Still Missing Before Public Release
+## Release Gate
 
-These should be handled before publishing a real public `v0.1.0`:
+Before publishing a release:
 
 1. Run the full prelaunch chaos checklist.
 2. Confirm README, CLI help, website, changelog, command reference, and docs
@@ -124,13 +124,17 @@ These should be handled before publishing a real public `v0.1.0`:
 3. Compare Sheprd's README, AGENTS.md, SKILL.md, contribution guide, issue
    templates, discussions, release notes, and install docs against Herdr's
    public surfaces.
-4. Decide the public GitHub owner and update issue contact links if needed.
-5. Rewrite/squash local private history into one polished root commit named
-   `Initial commit`.
-6. Recreate release notes from `Unreleased`, then tag only after the final gate.
-7. Run the release workflow once against the approved public remote.
-8. Promote the docs index into a real docs site if the one-page website becomes
-   too small.
+4. Recreate release notes from `Unreleased`, then tag only after the release
+   gate.
+5. Run the release workflow against the approved public remote.
+6. Confirm release artifacts include the support surface.
+
+## Post-Launch Follow-Ups
+
+- Promote the docs index into a fuller docs site if the one-page website becomes
+  too small.
+- Add Homebrew, mise, or Nix packaging only after the first release contract is
+  settled by real use.
 
 ## Deferred On Purpose
 

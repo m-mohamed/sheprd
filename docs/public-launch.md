@@ -1,7 +1,7 @@
 # Public Launch Checklist
 
-Use this only after the maintainer gives the explicit final ship gate and
-`sheprd` is ready to leave private checkpoint mode.
+Use this checklist for launch-style release gates where repository visibility,
+history shape, tags, or release artifacts are changing.
 
 ## Local Proof
 
@@ -43,29 +43,22 @@ Confirm:
 
 ## Public Root Commit
 
-Before pushing a shared remote, rewrite the private checkpoint history into one
-clean root commit:
+This step only applied before the first public push. Do not rewrite public
+history after users exist.
 
 ```bash
 git reset --soft "$(git rev-list --max-parents=0 HEAD)"
 git commit --amend -m "Initial commit"
 ```
 
-Do not rewrite history after the repository has public users.
-
-If the repository was briefly made public during private iteration, verify that
-the release, tag, release workflow artifacts, and seed discussions were removed
-before this checklist continues.
-
 ## Repository Setup
 
-1. Create the public GitHub repository.
-2. Add the remote.
-3. Push `main`.
-4. Enable Discussions.
-5. Confirm issue and discussion templates render correctly.
-6. Confirm Dependabot is enabled.
-7. Confirm Actions are enabled.
+1. Confirm the public GitHub repository exists.
+2. Confirm `main` is pushed.
+3. Confirm Discussions are enabled.
+4. Confirm issue and discussion templates render correctly.
+5. Confirm Dependabot is enabled.
+6. Confirm Actions are enabled.
 
 ## First Release
 

@@ -109,15 +109,15 @@ When adding user-facing behavior:
 
 ## Docs
 
-Root docs describe the current private prelaunch contract. Keep them aligned
-with CLI help and tests.
+Root docs describe the current public contract. Keep them aligned with CLI help
+and tests.
 
 - `README.md`: human public entry point.
 - `SKILL.md`: agent-facing usage contract.
 - `docs/product-foundation.md`: product boundary and direction.
-- `docs/open-source-readiness.md`: launch gap scorecard.
+- `docs/open-source-readiness.md`: public-readiness benchmark and follow-ups.
 - `docs/prelaunch-chaos.md`: final chaos checklist.
-- `docs/public-launch.md`: final public gate, only after the maintainer says ship.
+- `docs/public-launch.md`: launch and release gate checklist.
 - `website/index.html`: one-page public surface.
 
 Do not add broad plans or private operating notes to the repository. Public docs
@@ -146,8 +146,5 @@ docs: clarify Herdr boundary
 ```
 
 Do not create tags, publish GitHub releases, upload release artifacts, rewrite
-public history, or change repository visibility during private iteration.
-Public release requires the maintainer's explicit final ship gate.
-
-Before the final public gate, private checkpoint history may be rewritten into a
-clean root commit. Do not rewrite history after public users exist.
+public history, or change repository visibility from a normal contribution.
+Releases require the maintainer's explicit release gate.

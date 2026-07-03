@@ -114,4 +114,4 @@ just check
 
 Use `docs/commands.md` as the command contract when changing CLI behavior.
 Use `agent-guide.md` when helping a human learn or troubleshoot Sheprd.
-Before public release, also follow `docs/prelaunch-chaos.md`.
+Before a release, also follow `docs/prelaunch-chaos.md`.

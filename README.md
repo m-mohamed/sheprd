@@ -298,9 +298,9 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-Before a public release, run the prelaunch checklist in
-[`docs/prelaunch-chaos.md`](docs/prelaunch-chaos.md). Do not tag, publish, or
-flip repository visibility until the explicit final ship gate.
+Before a release, run the prelaunch checklist in
+[`docs/prelaunch-chaos.md`](docs/prelaunch-chaos.md). Do not tag or publish
+release artifacts until the maintainer release gate is open.
 
 ## License
 
