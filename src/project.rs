@@ -18,7 +18,7 @@ impl Project {
 
 pub fn resolve(config: &Config, selector: &str) -> Result<Project> {
     let path = PathBuf::from(selector);
-    if path.exists() {
+    if selector_is_path_like(selector, &path) && path.exists() {
         return project_from_path(&path);
     }
 
@@ -29,6 +29,7 @@ pub fn resolve(config: &Config, selector: &str) -> Result<Project> {
 
     match matches.as_slice() {
         [project] => Ok(project.clone()),
+        [] if path.exists() => project_from_path(&path),
         [] => Err(SheprdError::Message(format!(
             "project '{selector}' was not found"
         ))),
@@ -36,6 +37,13 @@ pub fn resolve(config: &Config, selector: &str) -> Result<Project> {
             "project '{selector}' is ambiguous; pass a path"
         ))),
     }
+}
+
+fn selector_is_path_like(selector: &str, path: &Path) -> bool {
+    path.is_absolute()
+        || selector.starts_with('.')
+        || selector.contains('/')
+        || selector.contains('\\')
 }
 
 pub fn discover(config: &Config) -> Result<Vec<Project>> {

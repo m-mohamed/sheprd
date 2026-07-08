@@ -290,6 +290,35 @@ fn explicit_projects_keep_configured_name_for_custom_path() {
 }
 
 #[test]
+fn configured_project_name_wins_over_local_same_named_directory() {
+    let fixture = Fixture::new();
+    fixture.write_config_with_project("codex", "ghost", "ghost-worktree");
+    fixture.git_repo("ghost-worktree");
+    let current_repo = fixture.root.join("current-repo");
+    std::fs::create_dir_all(current_repo.join(".git")).expect("current repo");
+    std::fs::create_dir_all(current_repo.join("ghost")).expect("shadow dir");
+    fixture.fake_tool("nvim");
+    fixture.fake_tool("lazygit");
+    fixture.fake_tool("codex");
+    fixture.fake_herdr(Some("ghost-codex"));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .current_dir(current_repo)
+        .args(["connect", "ghost", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"name\": \"ghost\""))
+        .stdout(predicate::str::contains("ghost-worktree"))
+        .stdout(predicate::str::contains("\"workspace\": \"ghost-codex\""));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("workspace focus w_existing"));
+    assert!(!log.contains("workspace create"));
+}
+
+#[test]
 fn connect_json_reports_created_workspace_and_recipe() {
     let fixture = Fixture::new();
     fixture.write_config("hermes");

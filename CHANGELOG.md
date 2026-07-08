@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Prioritize configured project names over same-named local directories when
+  resolving `sheprd connect <project>`.
+
 ## v0.1.0 - 2026-07-03
 
 ### Added
