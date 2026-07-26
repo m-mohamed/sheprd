@@ -2,16 +2,45 @@
 
 ## Unreleased
 
+## v0.2.0 - 2026-07-25
+
+### Added
+
+- Added the Herdr-native `m-mohamed.sheprd` manifest with open, picker, doctor,
+  cleanup-preview, and typed-confirmation cleanup actions.
+- Added the zoomable 2x2 Pi/Codex/Claude Code/OpenCode Flok with exact
+  high-effort model defaults and isolated worker branches/worktrees.
+- Added per-project operation locking, atomic state receipts, live four-agent
+  health checks, partial-failure rollback, and dirty-state preservation.
+- Added preview-first cleanup that validates path ownership, rechecks Git state
+  after workspace close, preserves branches, and archives receipts.
+- Added exact-version prebuilt installation with SHA-256 verification, locked
+  source fallback, hermetic installer tests, four-target releases, and build
+  provenance attestations.
+- Added Linux/macOS CI, weekly advisory/license/source audits, a security
+  policy, and a pinned Rust toolchain.
+
+### Changed
+
+- Reframed Sheprd around the tagline “keep every coding agent in frame.”
+- Reduced the supported agent set to Pi, Codex CLI, Claude Code, and OpenCode.
+- Made Flok the primary product surface while retaining legacy `connect` and
+  sample recipes for compatibility.
+- Replaced copied Herdr commercial-license language with Sheprd's actual
+  AGPL-3.0-or-later notice.
+
 ### Fixed
 
 - Prioritize configured project names over same-named local directories when
   resolving `sheprd connect <project>`.
+- Use Herdr's injected `HERDR_BIN_PATH` instead of assuming `herdr` is on PATH.
+- Upgraded `crossbeam-epoch` to the line fixed for RUSTSEC-2026-0204.
 
 ## v0.1.0 - 2026-07-03
 
 ### Added
 
-- Started `sheprd` as a fresh Herdr-native smart session manager.
+- Started `sheprd` as a Herdr-native project-to-workspace entry companion.
 - Added project discovery, config loading, `connect`, `list`, `recipes`, `doctor`, and `show-config`.
 - Added a first bundled sample recipe, `agent-dev`.
 - Added `connect --json` for non-interactive agent/script connection outcomes.

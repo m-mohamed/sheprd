@@ -7,8 +7,11 @@ What changed, and why does it belong in `sheprd`?
 - [ ] This keeps Herdr as the runtime owner.
 - [ ] This does not add terminal multiplexer, keybinding, persistence, remote,
       or agent-status ownership to `sheprd`.
-- [ ] Any recipe behavior is explicit and does not reshape existing live
-      workspaces.
+- [ ] This keeps the visible roster at exactly Pi, Codex, Claude Code, and
+      OpenCode; no hidden subagents were added.
+- [ ] Existing Floks are focused/inspected, not silently reshaped or repaired.
+- [ ] Rollback or cleanup cannot delete a worktree that is dirty or outside
+      Sheprd's owned state root.
 
 ## Proof
 
@@ -22,7 +25,8 @@ For user-facing changes, also include the relevant output from:
 
 ```bash
 just check
-sheprd connect <project> --json
+target/release/sheprd flok <project> --json
+target/release/sheprd cleanup <project> --json
 ```
 
 ## Docs

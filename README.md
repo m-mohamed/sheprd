@@ -1,307 +1,204 @@
-# sheprd
+# Sheprd
 
 <p align="center">
-  <img src="website/assets/sheprd-mark.svg" alt="sheprd" width="88" />
+  <img src="website/assets/sheprd-mark.svg" alt="Sheprd" width="96" />
 </p>
+
+<p align="center"><strong>Keep every coding agent in frame.</strong></p>
 
 <p align="center">
-  <a href="#install">install</a> ·
-  <a href="#quick-start">quick start</a> ·
-  <a href="docs/commands.md">commands</a> ·
-  <a href="#configuration">configuration</a> ·
-  <a href="#herdr-contract">Herdr contract</a> ·
-  <a href="#development">development</a>
+  <a href="https://github.com/m-mohamed/sheprd/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/m-mohamed/sheprd/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/m-mohamed/sheprd/actions/workflows/audit.yml"><img alt="Audit" src="https://github.com/m-mohamed/sheprd/actions/workflows/audit.yml/badge.svg"></a>
+  <a href="https://github.com/m-mohamed/sheprd/releases"><img alt="Release" src="https://img.shields.io/github/v/release/m-mohamed/sheprd"></a>
+  <a href="LICENSE"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-7aa2f7"></a>
 </p>
 
----
+Sheprd is an opinionated [Herdr](https://herdr.dev/) plugin for multi-agent
+coding. Its flagship workflow, **Flok**, opens exactly four visible agents in
+one zoomable workspace:
 
-**A small, sharp entry layer for Herdr workspaces.**
-
-Herdr owns the terminal runtime: sessions, workspaces, tabs, panes,
-persistence, agent state, remotes, keybindings, integrations, and attach/detach.
-
-`sheprd` owns the way in: find the project, choose the agent lane, and connect
-to the matching Herdr workspace. Optional sample recipes can shape a fresh
-workspace when you ask for them.
+| Pane | Responsibility | Default model and effort |
+| --- | --- | --- |
+| Pi | conductor in the clean base checkout | `openai-codex/gpt-5.6-sol` · `high` |
+| Codex CLI | implementation worker | `gpt-5.6-sol` · `high` |
+| Claude Code | implementation/review worker | `claude-opus-5` · `high` |
+| OpenCode | open-model worker | `opencode-go/kimi-k3` · `high` |
 
 ```text
-tmux  : sesh
-Herdr : sheprd
+Pi · conductor       │ Codex · GPT-5.6 Sol
+─────────────────────┼──────────────────────
+Claude · Opus 5      │ OpenCode · Kimi K3
 ```
 
-`sheprd` should earn trust by being boring, legible, and precise about what it
-does not own.
+Pi coordinates through Herdr's supported `agent prompt`, `agent wait`, and
+`agent read` commands. Each worker starts on its own branch in an isolated Git
+worktree. All four panes remain ordinary Herdr panes, so Herdr still owns focus,
+zoom, persistence, detach/reattach, remotes, agent state, and the socket API.
 
-## What You Get
+## Why this exists
 
-- **Project discovery.** Scan configured roots and explicit project mappings for
-  Git repositories.
-- **Agent lanes.** Open the same project for `codex`, `opencode`, `droid`,
-  `pi`, `hermes`, or `claude` without changing Herdr itself.
-- **Workspace focus.** Create or focus the matching Herdr workspace without
-  memorizing live workspace IDs.
-- **Doctor checks.** Verify Herdr, required tools, and Herdr server
-  protocol/socket readiness before you blame the wrong layer. JSON output
-  exposes typed Herdr runtime fields for agents and scripts.
-- **Sample recipes.** Apply an explicit starter layout only when creating a
-  fresh workspace.
+Herdr's marketplace already has excellent generic project pickers, declarative
+layout engines, worktree tools, and remote clients. Sheprd does not try to
+replace them. It owns one explicit cross-harness contract:
 
-## How It Compares
+```text
+Git project → visible Flok → isolated workers → evidence-backed result
+```
 
-| | Herdr | sheprd |
-| --- | --- | --- |
-| Runtime sessions | owns | uses |
-| Workspaces, tabs, panes | owns | creates/focuses through Herdr |
-| Persistence and attach/detach | owns | does not own |
-| Keybindings and UI | owns | does not own |
-| Project discovery | not its job | owns |
-| Agent lane naming | supports agents | selects the requested lane |
-| Sample starter layouts | can be driven by CLI/API | opt-in recipes |
+Sheprd is the product name. Flok is the four-agent mode.
 
-If a feature would turn `sheprd` into a terminal multiplexer, layout engine, or
-Herdr replacement, it belongs in a discussion before code.
+## Requirements
+
+- Herdr `0.7.5` or newer on macOS or Linux
+- Git
+- authenticated `pi`, `codex`, `claude`, and `opencode` CLIs
+- access to the configured models through your own accounts/subscriptions
+
+`sheprd doctor` verifies executables and the Herdr runtime boundary. It cannot
+verify provider credits, billing, rate limits, or model entitlement before an
+agent sends a request.
 
 ## Install
 
-`sheprd` is source-first while the project is young:
+Herdr previews the manifest and build command before confirmation:
+
+```bash
+herdr plugin install m-mohamed/sheprd
+herdr plugin action list --plugin m-mohamed.sheprd
+herdr plugin action invoke m-mohamed.sheprd.doctor
+```
+
+Managed installation downloads a prebuilt binary for the exact manifest
+version and verifies its SHA-256 checksum. If a matching asset or download tool
+is unavailable, the installer says so and falls back to
+`cargo build --release --locked`. A checksum mismatch is a hard failure. See
+[`SECURITY.md`](SECURITY.md) for the complete trust boundary.
+
+Pin a revision when you want a reproducible source checkout:
+
+```bash
+herdr plugin install m-mohamed/sheprd --ref v0.2.0
+```
+
+## Open a Flok
+
+From a Herdr pane inside a clean Git checkout:
+
+```bash
+herdr plugin action invoke m-mohamed.sheprd.open-flok
+```
+
+Or choose from configured projects:
+
+```bash
+herdr plugin action invoke m-mohamed.sheprd.choose-flok
+```
+
+Sheprd refuses to create a new Flok from a dirty base checkout. If a matching
+workspace already exists, Sheprd focuses it and reports its health; it never
+silently repairs or reshapes live panes.
+
+Recommended project-picker keybinding:
+
+```toml
+[[keys.command]]
+key = "prefix+p"
+type = "plugin_action"
+command = "m-mohamed.sheprd.choose-flok"
+description = "choose project and open Flok"
+```
+
+## Plugin actions
+
+| Action | Behavior |
+| --- | --- |
+| `m-mohamed.sheprd.open-flok` | Open or focus Flok for the active project |
+| `m-mohamed.sheprd.choose-flok` | Open the project picker popup |
+| `m-mohamed.sheprd.doctor` | Log a non-mutating readiness report |
+| `m-mohamed.sheprd.cleanup-preview` | Log a non-mutating cleanup preview |
+| `m-mohamed.sheprd.cleanup-flok` | Open a typed-confirmation cleanup popup |
+
+The cleanup popup refuses dirty or out-of-scope worker paths, closes the Herdr
+workspace before removing checkouts, preserves all worker branches, and moves
+the state receipt into plugin history.
+
+## Configuration
+
+Get the Herdr-managed config directory:
+
+```bash
+herdr plugin config-dir m-mohamed.sheprd
+```
+
+Create `config.toml` there:
+
+```toml
+roots = ["~/code", "~/work"]
+
+[[projects]]
+name = "my-app"
+path = "~/code/my-app"
+
+[flok]
+effort = "high"
+pi_model = "openai-codex/gpt-5.6-sol"
+codex_model = "gpt-5.6-sol"
+claude_model = "claude-opus-5"
+opencode_model = "opencode-go/kimi-k3"
+```
+
+Resolution order is `SHEPRD_CONFIG`, Herdr's plugin config directory, then the
+legacy `~/.config/sheprd/config.toml`. Existing dotfiles do not need to move.
+
+## Safety and recovery
+
+- A new Flok validates Herdr `0.7.5+`, config, all four CLIs, and a clean Git
+  checkout before it creates runtime state.
+- A per-project operation lock prevents concurrent Flok creation/cleanup.
+- State records are written atomically under `HERDR_PLUGIN_STATE_DIR`.
+- Partial creation closes the partial workspace, removes only clean temporary
+  worktrees, and reports every rollback decision.
+- Dirty worktrees are never deleted automatically.
+- Cleanup preserves branches even after it removes clean checkouts.
+- Pi receives read/search/shell tools but no direct editing tools; workers are
+  told not to create hidden subagents.
+
+Use structured output when automating or diagnosing from a source checkout:
+
+```bash
+target/release/sheprd doctor --json
+target/release/sheprd flok my-app --json
+target/release/sheprd cleanup my-app --json
+target/release/sheprd cleanup my-app --confirm --json
+```
+
+Launch JSON includes live workspace/pane IDs, agent names, models, worktree
+paths, branches, health, warnings, and the state receipt. Herdr IDs are live
+values; never treat them as durable configuration.
+
+## Development
+
+Herdr skips `[[build]]` for linked plugins, so build the binary first:
 
 ```bash
 git clone https://github.com/m-mohamed/sheprd
 cd sheprd
-scripts/install-local.sh
-```
-
-Set `SHEPRD_INSTALL_DIR` to install somewhere other than `~/.local/bin`:
-
-```bash
-SHEPRD_INSTALL_DIR=/usr/local/bin scripts/install-local.sh
-```
-
-Herdr must be installed separately. Start with the Herdr install docs:
-<https://herdr.dev/docs/install/>.
-
-## Quick Start
-
-Preview the default config:
-
-```bash
-sheprd init --print
-```
-
-Write a starter config:
-
-```bash
-sheprd init
-```
-
-Check the environment:
-
-```bash
-sheprd doctor
-```
-
-List projects:
-
-```bash
-sheprd list
-```
-
-Connect to a project:
-
-```bash
-sheprd connect my-project
-```
-
-`connect`, `open`, and `switch` share the same baseline behavior: create or
-focus the Herdr workspace for a project. They do not force panes, tabs, or
-commands by default. Non-JSON output reports the workspace action, project,
-agent, optional recipe, and attach result.
-
-Use a starter layout only when you want one:
-
-```bash
-sheprd connect my-project --recipe agent-dev
-```
-
-`agent-dev` creates a fresh workspace with:
-
-- `code`: `nvim`, selected agent, shell
-- `git`: `lazygit`, shell
-
-Recipes are intentionally small and optional. Re-running `connect` for an
-existing workspace focuses it instead of reshaping live panes.
-
-## Commands
-
-```bash
-sheprd init --print
-sheprd init
-sheprd list
-sheprd connect my-project
-sheprd connect my-project --recipe agent-dev
-sheprd open my-project
-sheprd switch my-project
-sheprd recipes
-sheprd doctor
-sheprd show-config
-```
-
-Use `--agent` to pick a lane:
-
-```bash
-sheprd --agent opencode connect my-project
-sheprd --agent droid list
-```
-
-Use `--json` when scripts or agents need stable output:
-
-```bash
-sheprd list --json
-sheprd doctor --json
-sheprd init --print --json
-sheprd connect my-project --json
-sheprd recipes --json
-sheprd show-config --json
-```
-
-`sheprd doctor --json` includes a typed `herdr` block with server running state,
-version, protocol, compatibility, socket path, and `protocol_ready`. Agents
-should use that field instead of scraping human check details.
-
-When a command fails after argument parsing, `--json` emits a structured error
-envelope on stderr with `ok: false`, `error.kind`, `error.message`, and
-`error.exit_code`.
-
-`sheprd connect --json` reports the resolved project, selected agent, Herdr
-workspace label/id, whether it focused or created, recipe use, and whether an
-interactive Herdr client was attached. JSON mode does not launch an interactive
-Herdr client; add a separate `sheprd connect my-project` when you want the human
-terminal attached.
-
-If you are already inside Herdr, use `--no-attach` to avoid nesting clients:
-
-```bash
-sheprd connect my-project --no-attach
-```
-
-## Configuration
-
-Create `~/.config/sheprd/config.toml` when defaults are not enough:
-
-```bash
-sheprd init --print
-sheprd init --root ~/Workspace --root ~/src
-```
-
-```toml
-roots = [
-  "~/Workspace",
-  "~/code",
-  "~/src",
-]
-
-[[projects]]
-name = "my-project"
-path = "~/workspace/startups/my-project-main-worktree"
-
-ignore = [
-  ".git",
-  ".direnv",
-  ".tmp",
-  "node_modules",
-  "target",
-  "vendor",
-]
-
-max_depth = 6
-default_agent = "codex"
-```
-
-Use `[[projects]]` entries when a project name should point at a specific path
-that would otherwise discover under the wrong directory name. Explicit projects
-keep the configured `name` while still using the configured `path` as the Herdr
-workspace cwd.
-
-Supported agents:
-
-- `pi`
-- `droid`
-- `claude`
-- `codex`
-- `hermes`
-- `opencode`
-
-## Herdr Contract
-
-`sheprd` uses Herdr's documented CLI wrappers:
-
-- `herdr workspace list/create/focus`
-- `herdr tab create/rename/focus`
-- `herdr pane split/rename/run/report-agent`
-- `herdr status`
-
-It does not store Herdr workspace, tab, or pane IDs. IDs are live runtime state,
-so `sheprd` reads them from Herdr command responses each time.
-
-Herdr's native runtime API makes future non-TUI clients possible. `sheprd`
-should stay a small companion: prefer CLI wrappers while they cover project
-connection, and add raw socket code only for protocol-client features such as
-dashboards, mobile clients, or event subscriptions. Any socket path must first
-check Herdr status, protocol compatibility, and socket location.
-
-## Docs
-
-- [Docs index](docs/README.md)
-- [Command reference](docs/commands.md)
-- [Product foundation](docs/product-foundation.md)
-- [Herdr precedent](docs/herdr-precedent.md)
-- [Open-source readiness](docs/open-source-readiness.md)
-- [Prelaunch chaos checklist](docs/prelaunch-chaos.md)
-- [Release process](docs/release.md)
-- [`SKILL.md`](SKILL.md): agent-facing usage contract
-- [`agent-guide.md`](agent-guide.md): agent-facing teaching and troubleshooting
-  guide
-
-## Agent Instructions
-
-If you are an AI agent helping in this repository, read
-[`AGENTS.md`](AGENTS.md) before making changes and read
-[`CONTRIBUTING.md`](CONTRIBUTING.md) before opening issues or PRs. If you are
-helping a human learn or troubleshoot Sheprd, read
-[`agent-guide.md`](agent-guide.md).
-
-## Development
-
-Install repo-local hooks once:
-
-```bash
-just install-hooks
-```
-
-Run the normal checks:
-
-```bash
-just ci
-```
-
-Run the fuller prelaunch gate:
-
-```bash
 just check
+cargo build --release --locked
+herdr plugin link .
+herdr plugin action list --plugin m-mohamed.sheprd
 ```
 
-Without `just`:
+The full local gate runs formatting, Clippy, the complete test suite, dependency/advisory and
+license policy, shell syntax, release build, smoke commands, and crate
+packaging. CI repeats the tests on Linux and macOS. Release assets cover macOS
+and Linux on x86_64 and aarch64 with SHA-256 sidecars and provenance
+attestations.
 
-```bash
-cargo fmt --all -- --check
-cargo clippy --all-targets -- -D warnings
-cargo test
-```
-
-Before a release, run the prelaunch checklist in
-[`docs/prelaunch-chaos.md`](docs/prelaunch-chaos.md). Do not tag or publish
-release artifacts until the maintainer release gate is open.
+See the [Docs index](docs/README.md), [Command reference](docs/commands.md),
+[`agent-guide.md`](agent-guide.md), [security policy](SECURITY.md), and
+[contribution guide](CONTRIBUTING.md).
 
 ## License
 
-`sheprd` is licensed under AGPL-3.0-or-later.
+Sheprd is licensed under [AGPL-3.0-or-later](LICENSE).

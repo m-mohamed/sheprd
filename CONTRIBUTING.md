@@ -25,13 +25,12 @@ Herdr owns runtime state:
 - agent state
 - integrations
 
-`sheprd` owns the entry layer:
+`sheprd` owns the Flok workflow layer:
 
 - project discovery
-- project selection
-- agent selection
-- preflight checks
-- optional sample recipes
+- the explicit four-agent layout and model defaults
+- clean preflight and isolated worker worktrees
+- state receipts, health inspection, rollback, and safe cleanup
 
 If a change turns `sheprd` into a terminal multiplexer, layout engine, or Herdr
 replacement, start with a discussion first.
@@ -42,7 +41,7 @@ Use issues for reproducible bugs with a clear current behavior, expected
 behavior, reproduction, environment, and impact.
 
 Use discussions for ideas, product direction, workflow questions, integration
-requests, and anything that would expand `sheprd` beyond the entry layer.
+requests, and anything that would expand `sheprd` beyond the Flok workflow boundary.
 
 ## Checks
 
@@ -64,7 +63,8 @@ Without `just`:
 ```bash
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
-cargo test
+cargo test --locked
+cargo deny check
 ```
 
 ## Commit Style
@@ -74,9 +74,9 @@ The root commit may be named `Initial commit`.
 After that, use short conventional commit subjects:
 
 ```text
-feat: add recipe listing
-fix: avoid nested herdr attach
-docs: clarify launch model
+feat: add Flok health output
+fix: preserve dirty rollback state
+docs: clarify Herdr ownership
 ```
 
 Do not tag, publish a release, or change repository visibility from a normal

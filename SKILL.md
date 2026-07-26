@@ -1,117 +1,89 @@
-# sheprd
+# Sheprd Flok Operator Contract
 
-Use this skill when working in a repository that uses `sheprd` to enter or
-inspect Herdr workspaces.
+Use this repository skill when the current project is operated through the
+`m-mohamed.sheprd` Herdr plugin.
 
-## Purpose
+## Invariants
 
-`sheprd` is a smart session manager for Herdr. It discovers projects, selects an
-agent lane, and connects to the matching Herdr workspace.
+- Herdr owns sessions, workspaces, panes, persistence, remotes, agent state,
+  keybindings, and live IDs.
+- Sheprd owns project resolution, the explicit 2x2 Flok, model defaults,
+  isolated worker worktrees, state receipts, and safe cleanup.
+- A Flok contains exactly four visible agents: Pi conducts; Codex, Claude Code,
+  and OpenCode work.
+- Pi must not edit project files. Never add hidden subagents or a fifth coding
+  agent.
+- Treat repository checks and worktree state as evidence; do not infer success
+  from an agent's prose.
 
-Herdr owns the runtime. Do not use `sheprd` as a terminal multiplexer, pane
-manager, keybinding layer, persistence layer, remote/SSH layer, or replacement
-for Herdr.
-
-## First Checks
-
-Run:
-
-```bash
-sheprd doctor
-sheprd list
-```
-
-For automation or troubleshooting a Herdr/runtime mismatch, prefer:
+## Start
 
 ```bash
-sheprd doctor --json
+herdr plugin action invoke m-mohamed.sheprd.doctor
+herdr plugin action invoke m-mohamed.sheprd.open-flok
+# or
+herdr plugin action invoke m-mohamed.sheprd.choose-flok
 ```
 
-Use the typed `herdr.protocol_ready`, `herdr.protocol`, `herdr.compatible`, and
-`herdr.socket` fields. Do not scrape the human `checks[].detail` string unless
-you are displaying it back to a person.
-
-When onboarding a fresh machine or unclear config, inspect the starter config
-without writing first:
+Then resolve the live roster instead of guessing names or IDs:
 
 ```bash
-sheprd init --print
+herdr agent list
 ```
 
-If you are already inside Herdr, prefer:
+`open-flok` focuses an existing workspace without reshaping it. Inspect the
+returned `healthy` field and `warnings`; a focused workspace is not necessarily
+a healthy four-agent roster.
+
+## Conduct
+
+Pi should send bounded, self-contained packets to the three visible workers:
 
 ```bash
-sheprd connect <project> --no-attach
+herdr agent prompt <agent-name> '<task with scope, checks, and stop conditions>'
+herdr agent wait <agent-name> --until idle --timeout 120000
+herdr agent read <agent-name> --source recent --lines 120 --format text
 ```
 
-This avoids nested Herdr clients.
+Use only current Herdr 0.7.5 commands. Do not copy older `agent send`,
+`agent wait --status`, or implicit agent-start examples.
 
-## Connecting
+Workers own separate branches and worktrees. Before synthesis, inspect the
+actual diff, commit, test output, and working-tree state for each worker. Pi may
+coordinate integration but must not silently edit the base checkout.
 
-Use:
+## Cleanup
+
+Preview through the headless action:
 
 ```bash
-sheprd connect <project>
+herdr plugin action invoke m-mohamed.sheprd.cleanup-preview
 ```
 
-`connect`, `open`, and `switch` are aliases for the same baseline behavior:
-create or focus the matching Herdr workspace. They should not force panes, tabs,
-or commands by default. Non-JSON output reports the workspace action, project,
-agent, optional recipe, and attach result.
-
-For automation, prefer:
+Use the interactive action for mutation:
 
 ```bash
-sheprd connect <project> --json
+herdr plugin action invoke m-mohamed.sheprd.cleanup-flok
 ```
 
-JSON connect output reports the resolved project, selected agent, Herdr
-workspace label/id, whether the workspace was focused or created, recipe use,
-and whether an interactive Herdr client was attached. JSON mode does not launch
-an interactive Herdr client.
+The popup requires the active project name. Cleanup refuses dirty or
+out-of-scope paths, preserves branches, and archives the state receipt. Never
+delete a worker checkout manually until its Git state and branch are understood.
 
-When a command fails after argument parsing, JSON mode emits a structured error
-envelope on stderr. Read `error.kind`, `error.message`, and `error.exit_code`
-instead of scraping human `error:` lines.
+## Diagnose
 
-## Sample Recipes
-
-Recipes are optional samples, not product policy.
-
-Use a recipe only when the user explicitly wants a starter layout:
+From a linked source checkout:
 
 ```bash
-sheprd connect <project> --recipe agent-dev
+target/release/sheprd doctor --json
+target/release/sheprd flok <project> --json
+target/release/sheprd cleanup <project> --json
+herdr plugin log list --plugin m-mohamed.sheprd
 ```
 
-The `agent-dev` sample creates:
+JSON launch output includes the current workspace, panes, agent names, models,
+effort, branches, worktree paths, health, warnings, and state path. Herdr IDs
+are session-local and must not be stored as durable configuration.
 
-- `code`: `nvim`, selected agent, shell
-- `git`: `lazygit`, shell
-
-Do not assume every user wants this layout.
-
-## Configuration
-
-Read config with:
-
-```bash
-sheprd show-config
-```
-
-Use `sheprd init` to create a starter config when the user asks for bootstrap
-help. It refuses to overwrite an existing config unless `--force` is explicit.
-Do not edit `~/.config/sheprd/config.toml` directly unless the user asks for a
-config change.
-
-## Development
-
-For this repository:
-
-```bash
-just check
-```
-
-Use `docs/commands.md` as the command contract when changing CLI behavior.
-Use `agent-guide.md` when helping a human learn or troubleshoot Sheprd.
-Before a release, also follow `docs/prelaunch-chaos.md`.
+Read [docs/commands.md](docs/commands.md) for the binary contract and
+[agent-guide.md](agent-guide.md) for human onboarding and troubleshooting.

@@ -1,72 +1,55 @@
-# Herdr Precedent
+# Herdr Ecosystem Precedent
 
-`sheprd` should feel native to the Herdr ecosystem without pretending to be
-Herdr.
+Sheprd should feel native to Herdr without copying Herdr or neighboring
+plugins. The July 2026 marketplace review used high-signal community plugins as
+implementation benchmarks, not feature shopping lists.
 
-## Public Benchmark
+## Patterns adopted
 
-Use Herdr's public project shape as the benchmark for `sheprd`:
+- **reviewr:** exact-version prebuilt archives, SHA-256 sidecars, draft-until-
+  complete releases, provenance attestations, weekly dependency policy.
+- **herdr-file-viewer:** manifest comments that explain trust-sensitive
+  commands, hermetic installer tests, honest platform declarations, hard
+  checksum behavior, cross-platform CI.
+- **Herdr Plus:** an end-to-end plugin action smoke surface and clear separation
+  between host context and plugin behavior.
+- **Workspace Manager:** startup/state maintenance, idempotence, and preview-
+  first destructive workflows.
+- **Sessionizer and Spreader:** focused project-selection/layout jobs rather
+  than runtime ownership.
 
-- README: direct promise, quick start, install paths, and clear concepts;
-- docs site: task-oriented docs, API docs, plugin docs, and update cadence;
-- AGENTS.md: architecture rules that keep agent changes from creating god
-  objects;
-- SKILL.md: an agent-facing usage contract for the project;
-- GitHub Discussions: ideas and Q&A outside the bug queue;
-- releases and packaging: SemVer tags, stable install path, Homebrew/Nix
-  options, and a clean crate/package story.
+Sheprd's corresponding standard is:
 
-The goal is not feature parity. The goal is the same public trust: a stranger
-should understand what the tool does, what it refuses to own, how to install it,
-how to contribute, and how to verify it.
+- manifest and scripts readable during Herdr's install preview;
+- `HERDR_BIN_PATH` for runtime calls;
+- exact `min_herdr_version` and platform claims;
+- reproducible locked builds plus verified release binaries;
+- adversarial tests for rollback, dirty-state preservation, injected Herdr
+  path, old runtime rejection, and cleanup confirmation;
+- public security, contribution, changelog, release, and operator surfaces.
 
-What we mirror:
+## Patterns deliberately not copied
 
-- small conventional commits;
-- `vX.Y.Z` tags;
-- release commits named `release: vX.Y.Z`;
-- `CHANGELOG.md`;
-- `CONTRIBUTING.md`;
-- `LICENSE`;
-- `just ci`;
-- GitHub Actions for fmt, clippy, and tests;
-- source installer script;
-- tag-shaped multi-platform release workflow kept behind the maintainer release
-  gate;
-- issue and discussion templates;
-- docs that explain product boundaries.
-- source-backed public docs that do not depend on maintainer private workflow.
+- generic fuzzy project/session management;
+- arbitrary declarative layouts;
+- file review/viewer UI;
+- remote/mobile clients;
+- automatic worktree deletion;
+- raw socket code while Herdr CLI wrappers express the workflow.
 
-What we do not mirror yet:
+## Herdr boundary
 
-- preview/stable update channels;
-- Homebrew formula;
-- mise or Nix installers;
-- raw socket event streams or custom protocol clients;
-- Ratatui picker.
-- approval-gate automation for outside contributors.
-
-Those come after the CLI is stable and there are real public users.
-
-## Herdr Boundary
-
-Herdr is moving toward native runtime API support for custom clients while the
-TUI remains first citizen. That strengthens, rather than weakens, `sheprd`'s
-boundary: Herdr is the runtime and protocol owner; `sheprd` is the public,
-boring project-to-workspace connector.
-
-Use the CLI wrappers first:
+Use wrapper commands first:
 
 ```bash
 herdr workspace list
 herdr workspace create --cwd PATH --label LABEL --focus
-herdr workspace focus WORKSPACE_ID
-herdr tab create --workspace WORKSPACE_ID --cwd PATH --label LABEL --no-focus
 herdr pane split PANE_ID --direction right --cwd PATH --no-focus
-herdr pane run PANE_ID COMMAND
+herdr agent start NAME --kind KIND --pane PANE_ID -- ARGS...
+herdr agent prompt NAME PROMPT
+herdr agent wait NAME --until idle --timeout 120000
+herdr agent read NAME --source recent --lines 120 --format text
 ```
 
-Only add raw socket code when `sheprd` is doing something the wrappers cannot
-express, such as a dashboard/mobile client bridge or event subscriber. Any raw
-socket path must first prove Herdr server status, protocol compatibility, and
-socket location through `sheprd doctor`.
+Raw socket work requires a use case the wrappers cannot express, plus protocol
+gates and tests that do not require a live session.

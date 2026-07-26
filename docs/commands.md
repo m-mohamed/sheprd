@@ -1,31 +1,26 @@
 # Command Reference
 
-`sheprd` is a Herdr entry layer. Every command should make project selection,
-agent selection, config bootstrap, or readiness easier without taking runtime
-ownership away from Herdr.
+The `sheprd` binary implements the Herdr plugin. Daily human use should prefer
+the manifest actions; the binary remains the testable JSON and recovery
+surface. Managed plugin installs do not add it to the global `PATH`.
 
 Herdr owns sessions, workspaces, tabs, panes, remotes, persistence, keybindings,
-integrations, attach/detach, and agent state. `sheprd` calls Herdr's documented
-CLI wrappers and treats Herdr ids as live runtime state.
+integrations, attach/detach, and agent state. Sheprd calls Herdr through the
+injected `HERDR_BIN_PATH` and treats every Herdr ID as live runtime state.
 
-## Global Options
+## Global options
 
-```bash
-sheprd --agent codex <command>
-sheprd --agent opencode <command>
-sheprd --json <command>
-sheprd --no-attach <command>
+```text
+--agent <pi|claude|codex|opencode>
+--json
+--no-attach
 ```
 
-`--agent` selects the lane used for workspace labels and sample recipes.
-Supported agents are `pi`, `droid`, `claude`, `codex`, `hermes`, and
-`opencode`.
+`--agent` applies to the legacy single-lane workspace commands and sample
+recipes. It does not change the four fixed Flok roles.
 
-`--json` is for scripts and agents. JSON mode must not launch an interactive
-Herdr client.
-
-When a command fails after argument parsing, `--json` emits a structured error
-envelope on stderr:
+Runtime failures after argument parsing emit a JSON envelope on stderr when
+`--json` is set:
 
 ```json
 {
@@ -38,133 +33,91 @@ envelope on stderr:
 }
 ```
 
-Agents should consume `error.kind`, `error.message`, and `error.exit_code`.
-Successful JSON responses keep their command-specific shape.
+Clap argument errors retain Clap's normal help output.
+Automation should consume `error.kind`, `error.message`, and `error.exit_code`
+instead of parsing the rendered message.
 
-`--no-attach` creates or focuses Herdr state without attaching a Herdr client.
-Use it from inside Herdr or from automation.
-
-## `init`
-
-Preview or write a starter config.
+## `flok`
 
 ```bash
-sheprd init --print
-sheprd init --root ~/Workspace --root ~/src
-sheprd init --force
-sheprd init --print --json
+sheprd flok
+sheprd flok my-app
+sheprd flok /path/to/repository --json
 ```
 
-`init --print` writes nothing. `init` refuses to overwrite an existing config
-unless `--force` is explicit.
+With no selector, Sheprd resolves `focused_pane_cwd` or `workspace_cwd` from
+`HERDR_PLUGIN_CONTEXT_JSON`, then falls back to the current directory.
 
-JSON output reports:
+A new Flok performs these gates and mutations in order:
 
-- `path`
-- `existed`
-- `written`
-- `default_agent`
-- `roots`
-- `contents` when `--print` is used
+1. verify Herdr `0.7.5+` and acquire a per-project operation lock;
+2. validate non-empty model/effort config and all four CLIs;
+3. refuse a dirty base checkout;
+4. create three worker branches and worktrees under plugin state;
+5. create the Herdr 2x2 workspace and start exactly four named agents;
+6. verify the live roster is exactly four and interactive-ready;
+7. atomically write the state receipt and focus the workspace.
 
-## `list`
+Partial failure closes a created workspace first, then removes only worker
+checkouts still verified clean. Dirty state and branches are preserved. The
+error reports every rollback decision.
 
-Discover projects and show their matching Herdr workspace labels.
+If the labeled workspace already exists, Sheprd only focuses it. It loads the
+saved receipt, compares it with `herdr agent list`, and returns `healthy` plus
+`warnings`; it never repairs or reshapes the live workspace implicitly.
+
+Successful JSON includes:
+
+- `schema_version`
+- `action`: `created_flok` or `focused_existing`
+- `project`, `workspace_id`, and `workspace_label`
+- `state_path`
+- four `agents` with role, kind, name, pane, model, effort, cwd, and branch
+- `healthy` and `warnings`
+
+## `cleanup`
+
+Preview is the default:
 
 ```bash
-sheprd list
-sheprd list --json
-sheprd --agent droid list
+sheprd cleanup
+sheprd cleanup my-app --json
 ```
 
-Text output is for quick scanning. JSON output reports the selected `agent` plus
-project rows with `name`, `path`, `workspace`, and `running`.
-
-`running` means a Herdr workspace with the expected label exists right now. It
-does not mean the project has no git changes, no active tasks, or no running
-agent work.
-
-## `connect`
-
-Create or focus the Herdr workspace for a project name or repository path.
+Mutation requires an explicit flag:
 
 ```bash
-sheprd connect my-project
-sheprd open my-project
-sheprd switch my-project
-sheprd connect ~/code/my-project --no-attach
-sheprd connect my-project --json
+sheprd cleanup my-app --confirm
+sheprd cleanup /path/to/repository --confirm --json
 ```
 
-`open` and `switch` are visible aliases for `connect`.
+Cleanup reads the project receipt, verifies every worker path belongs under
+Sheprd's plugin state root, and checks Git cleanliness. If any path is dirty or
+out of scope, `can_cleanup` is false and the workspace is not closed.
 
-Plain `connect` is intentionally boring: it creates or focuses the matching
-workspace and then lets Herdr own the runtime. It does not force tabs, panes, or
-commands.
+After confirmation, Sheprd closes the matching workspace, checks cleanliness
+again, removes clean worker checkouts, preserves their branches, and moves the
+state receipt into plugin history. If a checkout becomes dirty during shutdown,
+it is preserved.
 
-Human output reports:
+The Herdr actions are:
 
-- whether Sheprd `created` or `focused` a Herdr workspace
-- project name
-- agent lane
-- optional recipe
-- attach result
+- `m-mohamed.sheprd.cleanup-preview`: headless JSON preview, never confirms;
+- `m-mohamed.sheprd.cleanup-flok`: popup preview requiring the project name.
 
-JSON output reports:
-
-- resolved `project`
-- selected `agent`
-- `action`
-- `workspace`
-- `workspace_id`
-- optional `recipe`
-- `attached`
-
-JSON mode is non-interactive and leaves `attached` false.
-
-## `connect --recipe agent-dev`
-
-Apply an explicit sample layout only when creating a fresh workspace.
-
-```bash
-sheprd connect my-project --recipe agent-dev
-sheprd connect my-project --recipe agent-dev --no-attach
-```
-
-The sample creates:
-
-- `code`: `nvim`, selected agent, shell
-- `git`: `lazygit`, shell
-
-If the workspace already exists, Sheprd focuses it and does not reshape live
-tabs or panes.
-
-## `recipes`
-
-Show optional sample recipes.
-
-```bash
-sheprd recipes
-sheprd recipes --json
-```
-
-Recipes are examples, not default policy. The first public recipe is
-`agent-dev`.
+JSON includes `confirmed`, `can_cleanup`, `workspace_closed`,
+`state_archived_to`, per-worktree `exists`/`clean`/`removed` fields, and
+`warnings`.
 
 ## `doctor`
-
-Check the Herdr runtime path, expected tools, selected agent executable, and
-Herdr server protocol readiness.
 
 ```bash
 sheprd doctor
 sheprd doctor --json
 ```
 
-Human output is a checklist. JSON output reports `ready`, a typed `herdr` block,
-and raw `checks`.
-
-The `herdr` block includes:
+Checks the effective Herdr binary, Git, Pi, Codex, Claude Code, OpenCode, and
+the Herdr server. JSON returns `ready`, `checks`, and a typed `herdr` block:
 
 - `running`
 - `version`
@@ -174,38 +127,92 @@ The `herdr` block includes:
 - `protocol_ready`
 - `error`
 
-Agents and scripts should read `herdr.protocol_ready`, `herdr.protocol`,
-`herdr.compatible`, and `herdr.socket` instead of scraping human check details.
+Read `herdr.protocol_ready` rather than scraping the human checklist. Doctor
+cannot verify model billing, credits, entitlement, or a provider's availability.
+
+## `init`
+
+```bash
+sheprd init --print
+sheprd init --root ~/code --root ~/work
+sheprd init --force
+sheprd init --print --json
+```
+
+`init --print` writes nothing. `init` refuses to overwrite an existing config
+unless `--force` is explicit. JSON reports `path`, `existed`, `written`,
+`default_agent`, `roots`, and `contents` for a print operation.
+
+For managed plugins, prefer editing `config.toml` under:
+
+```bash
+herdr plugin config-dir m-mohamed.sheprd
+```
+
+## `list`
+
+```bash
+sheprd list
+sheprd list --json
+sheprd --agent claude list
+```
+
+Lists discovered projects and legacy single-lane workspace labels. `running`
+only means a matching Herdr label exists; it is not repository or agent health.
 
 ## `show-config`
-
-Show the active config after defaults, config file loading, path expansion, and
-explicit project entries.
 
 ```bash
 sheprd show-config
 sheprd show-config --json
 ```
 
-Use this command when project discovery is surprising. It shows which roots and
-explicit project mappings Sheprd is actually using.
+Shows the effective config path, roots, explicit projects, ignore list,
+discovery depth, default legacy lane, and Flok model defaults. Use this when
+project resolution is surprising.
 
-## Failure Behavior
+## Legacy `connect`
 
-Failures should be understandable and should not mutate Herdr state when the
-project cannot be resolved or the target path is not a git repository. Existing
-paths must contain `.git`; pass a repository root, not an arbitrary directory.
-
-Examples:
+The pre-Flok single-workspace entry path remains for compatibility:
 
 ```bash
-sheprd connect definitely-not-a-project --no-attach
-sheprd connect /tmp/not-a-repo --no-attach
-sheprd init
-sheprd init
+sheprd connect my-app
+sheprd open my-app
+sheprd switch my-app
+sheprd connect my-app --json
 ```
 
-The second `init` should fail unless `--force` is explicit.
+It creates or focuses a labeled Herdr workspace without forcing layout. JSON
+reports project, lane, action, `workspace_id`, optional recipe, and `attached`.
+JSON mode never launches a client.
 
-With `--json`, runtime failures use the structured error envelope above. Clap
-argument errors remain Clap's standard human help output.
+## Legacy `connect --recipe agent-dev`
+
+```bash
+sheprd connect my-app --recipe agent-dev --no-attach
+```
+
+This opt-in sample shapes only a newly created workspace with editor, selected
+agent, shell, and Git panes. Reconnecting focuses an existing workspace and
+does not reshape live panes.
+
+## `recipes`
+
+```bash
+sheprd recipes
+sheprd recipes --json
+```
+
+Recipes are compatibility examples, not Flok policy.
+
+## Failure behavior
+
+- An unresolved selector or existing non-repository path fails before Herdr
+  mutation. A repository path must contain `.git`; it cannot be an arbitrary
+  directory.
+- New Flok creation fails before worktree creation when the base is dirty,
+  Herdr is too old, a required CLI is missing, or model config is empty.
+- Concurrent Flok operations for one project fail with an operation-lock error.
+- Rollback and cleanup never delete a worktree that cannot be proven clean.
+- `--json` reports machine-readable runtime failures; it does not convert Clap
+  usage errors into JSON.

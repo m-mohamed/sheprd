@@ -1,97 +1,85 @@
 # Public Launch Checklist
 
-Use this checklist for launch-style release gates where repository visibility,
-history shape, tags, or release artifacts are changing.
+The Herdr marketplace is an automatic, unreviewed index of public GitHub
+repositories with the `herdr-plugin` topic. Publishing therefore has distinct
+gates: source, release, install, topic, and marketplace discovery.
 
-## Local Proof
+## 1. Release commit
 
-Run:
+- `Cargo.toml` and `herdr-plugin.toml` both declare `0.2.0`.
+- `CHANGELOG.md` has a non-empty `## v0.2.0` section.
+- README, CLI help, manifest descriptions, docs, security policy, and website
+  agree on Sheprd/Flok and the four-agent roster.
+- `just check`, the live plugin gate, disposable Flok gate, and real-project
+  iteration gate have receipts.
+- public-source and secret scans are clean.
 
-```bash
-just check
-just metadata-smoke
-just install-smoke
-just live-smoke "$PWD"
-SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
-/tmp/sheprd-install/sheprd --version
-```
+## 2. Public repository
 
-Then run the live Herdr checks in `docs/prelaunch-chaos.md`.
+- repository visibility is public;
+- description is concise and matches the marketplace card;
+- homepage points to `https://herdr.dev/plugins/` or the project site;
+- topics include `herdr-plugin`, `herdr`, `coding-agents`, `multi-agent`, and
+  `rust`;
+- Issues, Discussions, private vulnerability reporting, and Actions are
+  enabled as intended;
+- `main` is pushed and CI/Audit are green.
 
-## Public Hygiene
-
-Confirm:
-
-- no private machine paths in docs, website, tests, or workflow files;
-- README, command reference, agent guide, website, CLI help, changelog, and
-  release docs use the same language;
-- `sheprd init --print` previews starter config and `sheprd init` refuses to
-  overwrite an existing config without `--force`;
-- `agent-dev` is presented as a sample recipe, not default product policy;
-- `sheprd connect <project>` does not force panes, tabs, or commands;
-- `sheprd connect <project> --json` reports a non-interactive structured
-  project/workspace/action result;
-- recipes only shape newly created workspaces and do not rewrite existing live
-  Herdr panes;
-- `SKILL.md` tells agents to use `--no-attach` inside Herdr;
-- `AGENTS.md` explains the architecture, test gates, docs discipline,
-  contribution surface, and no-ship guardrails;
-- the PR template asks for Herdr boundary, proof, docs, and contributor
-  understanding;
-- issue templates are bug-only and discussion templates handle ideas/Q&A;
-- no approval-gate workflow exists until public contributor volume justifies it.
-
-## Public Root Commit
-
-This step only applied before the first public push. Do not rewrite public
-history after users exist.
+## 3. Release
 
 ```bash
-git reset --soft "$(git rev-list --max-parents=0 HEAD)"
-git commit --amend -m "Initial commit"
+git tag -a v0.2.0 -m "v0.2.0"
+git push origin main
+git push origin v0.2.0
 ```
 
-## Repository Setup
+The tag workflow must:
 
-1. Confirm the public GitHub repository exists.
-2. Confirm `main` is pushed.
-3. Confirm Discussions are enabled.
-4. Confirm issue and discussion templates render correctly.
-5. Confirm Dependabot is enabled.
-6. Confirm Actions are enabled.
+1. reject tag/crate/manifest disagreement or missing changelog notes;
+2. create a draft release;
+3. build macOS and Linux archives for x86_64 and aarch64;
+4. attach a SHA-256 sidecar and provenance attestation for every archive;
+5. publish only after every matrix target succeeds.
 
-## First Release
+Verify the release is not draft and contains eight assets (four archives plus
+four checksum sidecars). Verify at least one archive attestation.
 
-1. Move relevant `CHANGELOG.md` entries from `Unreleased` into `## v0.1.0`.
-2. Run:
+## 4. Clean public install
 
-   ```bash
-   just check
-   just release-notes 0.1.0
-   ```
+Unlink the development checkout, then install from GitHub:
 
-3. Commit:
+```bash
+herdr plugin unlink m-mohamed.sheprd
+herdr plugin install m-mohamed/sheprd --ref v0.2.0
+herdr plugin list
+herdr plugin action list --plugin m-mohamed.sheprd
+herdr plugin action invoke m-mohamed.sheprd.doctor
+```
 
-   ```bash
-   git commit -m "release: v0.1.0"
-   ```
+Confirm the install preview names `scripts/install-plugin.sh`; the log reports
+an exact-version checksum-verified binary, not an unexplained source build.
+Reinstall once to verify replacement of the managed checkout.
 
-4. Tag:
+## 5. Marketplace discovery
 
-   ```bash
-   git tag -a v0.1.0 -m "v0.1.0"
-   git push origin main --tags
-   ```
+Add the `herdr-plugin` topic only after the clean public install succeeds. The
+index refreshes about every 30 minutes.
 
-5. Confirm release artifacts exist for Linux x86_64, macOS x86_64
-   (`macos-15-intel`), and macOS aarch64.
-6. Confirm each release archive includes the binary plus README, license,
-   changelog, contributor docs, agent docs, agent guide, `justfile`,
-   `.github/`, `.githooks/`, `docs/`, `scripts/`, and `website/`.
+Verify the public card separately:
 
-## Post-Launch
+- owner/repository: `m-mohamed/sheprd`;
+- description matches GitHub metadata;
+- primary language is Rust;
+- repository link opens publicly;
+- `herdr plugin install m-mohamed/sheprd` still succeeds from the card's source.
 
-- Open one Q&A discussion explaining the Herdr boundary.
-- Open one idea discussion for the future Ratatui picker.
-- Do not add Homebrew, mise, Nix, or approval gates until real usage asks for
-  them.
+A topic receipt is submitted, not listed. A visible card is listed, not Herdr-
+reviewed or endorsed.
+
+## 6. Post-launch
+
+- keep the local managed install enabled;
+- preserve release and marketplace URLs;
+- monitor CI/Audit and the first install issue;
+- do not add Windows, package-manager, or generic-layout claims without their
+  own tested gates.

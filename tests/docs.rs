@@ -44,15 +44,15 @@ fn website_keeps_the_public_surface() {
         "id=\"quick-start\"",
         "id=\"contract\"",
         "id=\"docs\"",
-        "Agent-safe",
-        "Docs with boundaries",
-        "Herdr owns",
-        "sheprd owns",
-        "init --print",
-        "connect my-project --json",
+        "Keep every coding agent",
+        "conductor",
+        "Codex CLI",
+        "Claude Code",
+        "OpenCode",
+        "cleanup-preview",
+        "SHA-256",
         "docs.html",
-        "docs.html#commands",
-        "docs.html#agents",
+        "Herdr marketplace",
     ] {
         assert!(html.contains(needle), "website is missing {needle}");
     }
@@ -64,14 +64,16 @@ fn website_docs_page_keeps_public_docs_surface() {
 
     for needle in [
         "Sheprd docs.",
-        "Start with the boundary.",
-        "sheprd connect my-project --json",
-        "Do not run release steps before the explicit maintainer release gate.",
+        "Start with the boundary:",
+        "herdr plugin install m-mohamed/sheprd",
+        "m-mohamed.sheprd.open-flok",
+        "m-mohamed.sheprd.cleanup-flok",
+        "Herdr plugins execute as your user",
         "../docs/commands.md",
         "../SKILL.md",
         "../agent-guide.md",
-        "../docs/open-source-readiness.md",
-        "../docs/public-launch.md",
+        "../SECURITY.md",
+        "../docs/prelaunch-chaos.md",
         "../CONTRIBUTING.md",
     ] {
         assert!(html.contains(needle), "website docs is missing {needle}");
@@ -124,23 +126,25 @@ fn command_reference_covers_public_cli_surface() {
     );
 
     for needle in [
-        "## Global Options",
+        "## Global options",
+        "## `flok`",
+        "## `cleanup`",
         "## `init`",
         "## `list`",
-        "## `connect`",
-        "## `connect --recipe agent-dev`",
+        "## Legacy `connect`",
+        "## Legacy `connect --recipe agent-dev`",
         "## `recipes`",
         "## `doctor`",
         "## `show-config`",
-        "## Failure Behavior",
+        "## Failure behavior",
         "`herdr.protocol_ready`",
         "`workspace_id`",
         "`attached`",
         "\"ok\": false",
         "\"exit_code\": 2",
         "`error.kind`",
-        "does not reshape live",
-        "not an arbitrary directory",
+        "never repairs or reshapes",
+        "cannot be an arbitrary",
     ] {
         assert!(
             reference.contains(needle),
@@ -166,14 +170,15 @@ fn agent_guide_covers_teaching_surface() {
     );
 
     for needle in [
-        "Sheprd is a Herdr plugin.",
+        "Sheprd is a Herdr plugin",
         "Flok",
         "m-mohamed.sheprd.doctor",
-        "Pi conductor",
-        "OpenCode · Kimi K3",
-        "no hidden subagents",
+        "Pi conducts",
+        "OpenCode",
+        "There are no hidden subagents",
+        "cleanup-flok",
         "Raw socket",
-        "Herdr IDs are live values",
+        "Herdr IDs",
     ] {
         assert!(guide.contains(needle), "agent guide is missing {needle}");
     }

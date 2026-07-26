@@ -1,119 +1,108 @@
 # Prelaunch Chaos Checklist
 
-Run this before treating the repository as publish-ready.
+Run this against the exact release commit. Keep static, disposable-runtime, real
+project, public-release, and marketplace truth separate.
 
-The point is to prove the actual user flow, not just compile the code.
-
-## Static Gates
+## Static gate
 
 ```bash
 just check
 just metadata-smoke
-just install-smoke
-target/release/sheprd --help
-target/release/sheprd init --print
-target/release/sheprd init --print --json
-target/release/sheprd connect --help
-target/release/sheprd recipes
-target/release/sheprd recipes --json
-target/release/sheprd show-config
-target/release/sheprd connect "$PWD" --json
-target/release/sheprd connect definitely-not-a-project --json
-SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
-/tmp/sheprd-install/sheprd --version
+git diff --check
+cargo package --locked
+cargo deny check
+bash -n scripts/*.sh
 ```
 
-Expected result: commands succeed, help text says sample recipes, `init --print`
-emits valid starter config without writing, and output matches README, command
-reference, website, and changelog language. `cargo package` should also verify
-the crate package without warnings. `connect --json` must report the project,
-selected agent, Herdr workspace label/id, action, recipe status, and
-`attached: false`. Runtime failures after argument parsing must emit a JSON
-error envelope on stderr.
+Expected: the complete test suite plus format/Clippy/package green, no advisory/license/source
+failure, and only the documented `winnow` duplicate-version warning.
 
-The shortcut for the full local, install, and live smoke pass is:
+## Public hygiene gate
 
 ```bash
-just prelaunch-check
+rg -n --hidden --glob '!target/**' --glob '!.git/**' \
+  '(Users/[^/]+|BEGIN .*PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{10,})' .
+rg -n --hidden --glob '!target/**' --glob '!.git/**' --glob '!docs/prelaunch-chaos.md' \
+  '(smart session manager|Herdr is dual-licensed|hey@herdr.dev)' .
 ```
 
-## Herdr Runtime Gates
+Expected: no maintainer machine path, token/key, copied Herdr licensing, or old
+product framing.
 
-With Herdr running:
+## Live plugin gate
 
 ```bash
-herdr status
-target/release/sheprd doctor
-target/release/sheprd list
-target/release/sheprd connect "$PWD" --no-attach
-target/release/sheprd connect "$PWD" --json
-target/release/sheprd connect "$PWD" --recipe agent-dev --no-attach
-tmp_repo="$(mktemp -d /tmp/sheprd-recipe.XXXXXX)"
-git -C "$tmp_repo" init
-target/release/sheprd connect "$tmp_repo" --recipe agent-dev --json
+cargo build --release --locked
+herdr plugin unlink m-mohamed.sheprd 2>/dev/null || true
+herdr plugin link .
+herdr plugin action list --plugin m-mohamed.sheprd
+herdr plugin action invoke m-mohamed.sheprd.doctor
+herdr plugin log list --plugin m-mohamed.sheprd
 ```
 
-Or run:
+Expected: Herdr accepts the manifest, lists five actions, and doctor reports
+Herdr `0.7.5`, protocol `17`, Git, and four agent CLIs ready.
+
+## Disposable Flok gate
+
+Use an exact temporary path and keep the cleanup receipt:
 
 ```bash
-just live-smoke "$PWD"
+tmp_repo="$(mktemp -d /tmp/sheprd-flok.XXXXXX)"
+git -C "$tmp_repo" init -q
+git -C "$tmp_repo" config user.name "Sheprd Release Test"
+git -C "$tmp_repo" config user.email "release-test@example.invalid"
+printf '# release fixture\n' > "$tmp_repo/README.md"
+git -C "$tmp_repo" add README.md
+git -C "$tmp_repo" commit -q -m seed
+target/release/sheprd flok "$tmp_repo" --json
+target/release/sheprd flok "$tmp_repo" --json
+target/release/sheprd cleanup "$tmp_repo" --json
+target/release/sheprd cleanup "$tmp_repo" --confirm --json
+git -C "$tmp_repo" worktree list --porcelain
 ```
 
-Expected result:
+Expected:
 
-- `doctor` reports Herdr, Neovim, Lazygit, and the selected agent.
-- plain `connect` creates or focuses a workspace without forcing a layout.
-- `--recipe agent-dev` applies the sample layout only when it creates a fresh
-  workspace.
-- repeated connects reuse the existing workspace instead of duplicating state or
-  reshaping live panes.
-- JSON mode is non-interactive and reports whether it focused an existing
-  workspace or created a new one.
+- first launch returns `created_flok`, four agents, `healthy: true`;
+- second returns `focused_existing` without new worktrees or pane reshaping;
+- preview changes nothing;
+- confirmed cleanup closes the workspace, removes three clean checkouts,
+  preserves three branches, and archives state;
+- the base repository is the only remaining worktree.
 
-## Failure Gates
+Move the exact temporary directory to Trash after the receipt is captured.
+
+## Failure gate
+
+The automated suite covers missing CLIs, Herdr `0.7.4`, forced agent-start
+failure, clean rollback, dirty rollback preservation, missing state, injected
+`HERDR_BIN_PATH`, checksum mismatch, dirty cleanup refusal, and typed popup
+confirmation. Re-run the named tests when changing those paths:
 
 ```bash
-target/release/sheprd connect /tmp/not-a-repo --no-attach
-target/release/sheprd connect definitely-not-a-project --no-attach
-target/release/sheprd --agent missing-agent doctor
-tmp_home="$(mktemp -d /tmp/sheprd-home.XXXXXX)"
-SHEPRD_CONFIG="$tmp_home/config.toml" target/release/sheprd init
-SHEPRD_CONFIG="$tmp_home/config.toml" target/release/sheprd init
+cargo test --locked --test cli flok_
+cargo test --locked --test cli cleanup_
+cargo test --locked --test install_plugin
+cargo test --locked --test manifest
 ```
 
-Expected result: failures are understandable and do not mutate Herdr state.
-The second `init` must fail unless `--force` is explicit.
-With `--json`, runtime failures should use the structured error envelope.
+## Real project iteration gate
 
-## Terminal Gates
+Use one clean, non-release-critical repository:
 
-Manually verify in Ghostty:
+1. Open its Flok through the plugin action.
+2. Have Pi give one bounded implementation packet to a visible worker.
+3. Require another visible worker to review the diff.
+4. Require repository tests and a commit in the worker branch.
+5. Inspect the actual branch, diff, test receipt, and base-checkout cleanliness.
+6. Preview cleanup; do not remove worktrees containing useful unmerged work.
 
-1. Open a normal shell.
-2. Run `sheprd connect "$PWD"` from this repository.
-3. Confirm it attaches to Herdr once.
-4. From inside Herdr, run `sheprd connect "$PWD" --no-attach`.
-5. Confirm no nested Herdr attach is attempted.
-6. Detach and reattach using Herdr's own flow.
+This proves the operating loop. It does not by itself prove release assets or
+the public marketplace path.
 
-## Docs Gates
+## Release and marketplace gates
 
-Before the public root commit:
-
-```bash
-rg -n --glob '!docs/prelaunch-chaos.md' "built-in|coding layout|small startup|recipe optional" README.md CONTRIBUTING.md AGENTS.md CHANGELOG.md docs website src tests
-rg -n --glob '!docs/prelaunch-chaos.md' "sample recipe|agent-dev|Herdr owns|sheprd owns" README.md CONTRIBUTING.md AGENTS.md docs website src
-```
-
-Expected result: public language says `sample recipe`, not default layout policy.
-The command list in `docs/commands.md` should match the CLI help and README.
-
-## History Gate
-
-This historical first-launch step only applied before the first public push.
-Do not rewrite public history after users exist.
-
-```bash
-git reset --soft "$(git rev-list --max-parents=0 HEAD)"
-git commit --amend -m "Initial commit"
-```
+Follow [public-launch.md](public-launch.md). Do not call the plugin published
+until public install succeeds. Do not call it listed until the marketplace card
+is visible after the automatic index refresh.

@@ -1,71 +1,59 @@
 # Release Process
 
-`sheprd` follows SemVer with git tags shaped as `v0.1.0`.
-
-Do not create release tags or publish GitHub releases until the maintainer
-release gate is open.
-
-## Public History
-
-The first public push used one intentional root commit:
-
-```bash
-git reset --soft "$(git rev-list --max-parents=0 HEAD)"
-git commit --amend -m "Initial commit"
-```
-
-Do not do this again after the repository has public consumers.
-
-## Check
-
-```bash
-just check
-just metadata-smoke
-just install-smoke
-SHEPRD_INSTALL_DIR=/tmp/sheprd-install scripts/install-local.sh
-```
-
-Confirm there are no accidental release tags before the release gate:
-
-```bash
-git tag --list 'v*'
-gh release list -R m-mohamed/sheprd
-```
+Sheprd follows SemVer with annotated `vX.Y.Z` tags. The current plugin release
+line is `v0.2.0`.
 
 ## Prepare
 
-1. Update `CHANGELOG.md`.
-2. Bump `Cargo.toml`.
-3. Confirm the Cargo version and intended tag match.
-4. Confirm release notes can be extracted:
+1. Move release entries from `Unreleased` into `## vX.Y.Z - YYYY-MM-DD`.
+2. Set the same version in `Cargo.toml` and `herdr-plugin.toml`.
+3. Run:
 
    ```bash
-   just release-notes 0.1.0
+   just check
+   just metadata-smoke
+   just release-notes X.Y.Z
+   cargo package --locked
+   git diff --check
    ```
 
-5. Commit with:
+4. Complete the live, disposable, real-project, and public-hygiene gates in
+   [prelaunch-chaos.md](prelaunch-chaos.md).
+5. Commit with `release: vX.Y.Z` only when the tree is clean and review is
+   resolved.
 
-   ```bash
-   git commit -m "release: v0.1.0"
-   ```
+## Tag and publish
 
-6. Tag with:
+```bash
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin main
+git push origin vX.Y.Z
+```
 
-   ```bash
-   git tag -a v0.1.0 -m "v0.1.0"
-   ```
+The workflow validates version agreement and exact changelog notes, creates a
+draft release, builds four target archives, adds SHA-256 sidecars and GitHub
+provenance attestations, then publishes only after every target succeeds. A
+failed target leaves a draft for inspection rather than a partial public
+release.
 
-## Standard
+Supported release targets:
 
-Do not publish a release where CLI help, README, website, and changelog
-disagree.
+- `aarch64-apple-darwin`
+- `x86_64-apple-darwin`
+- `aarch64-unknown-linux-musl`
+- `x86_64-unknown-linux-musl`
 
-Release artifacts should include the binary plus `README.md`, `LICENSE`,
-`CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `SKILL.md`,
-`agent-guide.md`, `justfile`, `.github/`, `.githooks/`, `docs/`, `scripts/`,
-and `website/` so users can inspect the same support surface that the README
-points at.
+## Verify
 
-Do not publish a release unless the repository visibility, release tag, release
-notes, downloadable artifacts, discussions, and public history have all been
-approved in the release gate.
+```bash
+gh release view vX.Y.Z -R m-mohamed/sheprd
+gh release download vX.Y.Z -R m-mohamed/sheprd --pattern 'sheprd-*.tar.gz'
+gh attestation verify sheprd-TARGET.tar.gz --repo m-mohamed/sheprd
+```
+
+Then perform a clean Herdr install pinned to the tag. Release success is not
+marketplace success; add/verify the `herdr-plugin` topic and visible marketplace
+card as separate gates.
+
+Never rewrite public history, reuse a release tag, publish mismatched versions,
+or treat a draft/partial workflow as shipped.

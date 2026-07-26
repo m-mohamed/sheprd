@@ -1,51 +1,66 @@
 # Product Foundation
 
-`sheprd` is the smart session manager for Herdr.
+Sheprd keeps exactly four coding agents in frame. Flok is the opinionated mode;
+Herdr is the runtime.
 
-The project is legitimate if it stays narrow:
+## Ownership
 
-- Herdr is the runtime.
-- `sheprd` is the way in.
+Herdr owns:
 
-The first public product surface is intentionally small:
+- sessions, workspaces, tabs, panes, focus, zoom, and persistence;
+- remote access, attach/detach, keybindings, and agent lifecycle state;
+- plugin installation, invocation context, logs, and the CLI/socket protocol.
+
+Sheprd owns:
+
+- project discovery and explicit project names;
+- one documented 2x2 Pi/Codex/Claude/OpenCode layout;
+- model and effort defaults;
+- clean-check protection and isolated worker worktrees;
+- operation locking, state receipts, health comparison, rollback, and cleanup.
+
+If a feature makes Sheprd a multiplexer, general layout engine, session store,
+keybinding system, remote layer, or hidden agent harness, it belongs elsewhere.
+
+## Flok contract
+
+Pi conducts from the clean base checkout without direct edit tools. Codex,
+Claude Code, and OpenCode each work in a dedicated branch/worktree. The roster
+is visible and fixed at four.
+
+A new Flok is transactional: prerequisites and cleanliness precede mutation;
+live roster verification precedes the atomic state receipt. Partial failures
+remove only resources still proven clean. Existing Floks are focused and
+inspected, never implicitly repaired.
+
+Cleanup is equally explicit: preview first, typed confirmation or `--confirm`,
+path ownership and cleanliness checks, workspace close, clean checkout removal,
+branch preservation, and state archival.
+
+## Product surfaces
+
+The primary surface is the Herdr manifest:
 
 ```bash
-sheprd init --print
-sheprd init
-sheprd list
-sheprd connect <project-or-path>
-sheprd connect <project-or-path> --json
-sheprd connect <project-or-path> --recipe agent-dev
-sheprd recipes
-sheprd doctor
-sheprd doctor --json
-sheprd show-config
+herdr plugin action invoke m-mohamed.sheprd.open-flok
+herdr plugin action invoke m-mohamed.sheprd.choose-flok
+herdr plugin action invoke m-mohamed.sheprd.cleanup-flok
 ```
 
-Plain `connect` creates or focuses a workspace. Sample recipes are opt-in so
-`sheprd` stays closer to `sesh` than to a personal layout manager.
+The binary exists for deterministic testing, JSON automation, and recovery:
 
-Human `connect` output should be concise and factual: workspace action, project,
-agent, optional recipe, and attach result. Machine consumers should use
-`connect --json`.
+```bash
+sheprd doctor --json
+sheprd flok <project> --json
+sheprd cleanup <project> --json
+```
 
-`connect --json` is the automation surface: it should report the resolved
-project, selected agent, Herdr workspace label/id, whether the workspace was
-created or focused, recipe use, and attach status without launching an
-interactive Herdr client.
+The older `connect` and sample-recipe commands remain compatibility surfaces;
+they are no longer the product's main story.
 
-`doctor --json` is the Herdr runtime readiness surface: it reports typed server
-running state, version, protocol, compatibility, socket path, and
-`protocol_ready` so agents can decide whether Herdr protocol automation is safe
-without scraping human details.
+## Honest limits
 
-JSON failure output is also part of the automation surface. Runtime failures
-after argument parsing should emit `ok: false`, `error.kind`, `error.message`,
-and `error.exit_code` on stderr.
-
-`init` is the first-run bootstrap surface. It prints or writes a starter config,
-uses repeated `--root` values for discovery roots, and refuses to overwrite an
-existing config unless `--force` is explicit.
-
-Future work should add explicit project entries, recent ranking, recipe config,
-and an optional Ratatui picker only after the CLI behavior is boringly stable.
+Doctor can prove paths and Herdr protocol readiness. It cannot pre-authorize
+models or prove provider credits, billing, rate limits, or future model-name
+stability. A worker's output is not merge proof; repository and test evidence
+remain required.

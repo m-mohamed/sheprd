@@ -27,8 +27,9 @@ body:
       label: Reproduction
       description: The shortest command sequence that shows the problem.
       placeholder: |
-        sheprd doctor
-        sheprd connect my-project --no-attach
+        herdr plugin action invoke m-mohamed.sheprd.doctor
+        herdr plugin action invoke m-mohamed.sheprd.open-flok
+        herdr plugin log list --plugin m-mohamed.sheprd
     validations:
       required: true
   - type: textarea

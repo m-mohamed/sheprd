@@ -5,8 +5,10 @@ edition = "2021"
 rust-version = "1.92"
 description = "Keep every coding agent in frame with Herdr"
 license = "AGPL-3.0-or-later"
-documentation = "https://docs.rs/sheprd"
-keywords = ["terminal", "herdr", "session", "agents", "cli"]
+repository = "https://github.com/m-mohamed/sheprd"
+homepage = "https://github.com/m-mohamed/sheprd"
+documentation = "https://github.com/m-mohamed/sheprd/tree/main/docs"
+keywords = ["herdr", "coding-agents", "multi-agent", "terminal", "orchestration"]
 categories = ["command-line-utilities", "development-tools"]
 include = [
   "src/**/*",
