@@ -1,13 +1,14 @@
 # sheprd
 
-`sheprd` is a small Herdr companion, not a terminal runtime.
+Sheprd is a Herdr plugin, not a terminal runtime. Its flagship workflow is
+`Flok`: one visible Pi conductor plus Codex, Claude Code, and OpenCode workers.
 
 Keep the boundary sharp:
 
 - Herdr owns runtime state, panes, tabs, sessions, remotes, keybindings,
   integrations, persistence, attach/detach, and agent status.
-- `sheprd` owns project discovery, project selection, agent selection, preflight
-  checks, automation-friendly outcomes, and optional sample recipes.
+- Sheprd owns project discovery, the explicit Flok layout, worker-worktree
+  creation, model defaults, preflight checks, and structured outcomes.
 
 If a change turns `sheprd` into a terminal multiplexer, layout engine,
 keybinding layer, persistence layer, remote/SSH layer, or Herdr replacement,
@@ -22,9 +23,13 @@ stop and start with a discussion.
 - **Live ids are not durable.** Herdr workspace, tab, and pane ids belong to the
   current session. Read them from Herdr responses every time; do not store or
   guess them.
-- **Plain connect is boring.** `sheprd connect <project>` creates or focuses the
-  matching Herdr workspace. It must not force tabs, panes, commands, or a
-  personal layout.
+- **Flok is explicit.** The plugin may shape a newly created `*-flok` workspace
+  into its documented 2x2 layout. It must only focus an existing Flok; never
+  reshape or repair live panes implicitly.
+- **Exactly four agents.** Pi conducts. Codex, Claude Code, and OpenCode work.
+  Do not add hidden subagents or another harness to Flok.
+- **Workers are isolated.** Each worker starts in its own clean git worktree.
+  Pi stays in the base checkout without direct edit/write tools.
 - **Recipes are explicit samples.** `--recipe agent-dev` may shape a newly
   created workspace. It must not rewrite an existing live Herdr workspace.
 - **Agents get JSON.** Automation should prefer `--json` and `--no-attach`.

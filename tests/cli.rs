@@ -11,7 +11,7 @@ fn help_describes_product_boundary() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("smart session manager for Herdr"));
+        .stdout(predicate::str::contains("visible four-agent Flok"));
 }
 
 #[test]
@@ -94,15 +94,15 @@ fn init_json_reports_force_overwrite() {
         .expect("binary")
         .env("HOME", fixture.home.path())
         .env("SHEPRD_CONFIG", &config_path)
-        .args(["init", "--force", "--json", "--agent", "droid"])
+        .args(["init", "--force", "--json", "--agent", "opencode"])
         .assert()
         .success()
         .stdout(predicate::str::contains("\"existed\": true"))
         .stdout(predicate::str::contains("\"written\": true"))
-        .stdout(predicate::str::contains("\"default_agent\": \"droid\""));
+        .stdout(predicate::str::contains("\"default_agent\": \"opencode\""));
 
     let contents = std::fs::read_to_string(&config_path).expect("config");
-    assert!(contents.contains("default_agent = \"droid\""));
+    assert!(contents.contains("default_agent = \"opencode\""));
 }
 
 #[test]
@@ -112,6 +112,9 @@ fn doctor_reports_herdr_protocol_and_socket() {
     fixture.fake_tool("nvim");
     fixture.fake_tool("lazygit");
     fixture.fake_tool("codex");
+    fixture.fake_tool("pi");
+    fixture.fake_tool("claude");
+    fixture.fake_tool("opencode");
     fixture.fake_herdr(None);
 
     Command::cargo_bin("sheprd")
@@ -122,11 +125,33 @@ fn doctor_reports_herdr_protocol_and_socket() {
         .success()
         .stdout(predicate::str::contains("\"herdr\": {"))
         .stdout(predicate::str::contains("\"running\": true"))
-        .stdout(predicate::str::contains("\"protocol\": \"14\""))
+        .stdout(predicate::str::contains("\"protocol\": \"17\""))
         .stdout(predicate::str::contains("\"socket\": \"/tmp/herdr.sock\""))
         .stdout(predicate::str::contains("\"protocol_ready\": true"))
-        .stdout(predicate::str::contains("protocol=14"))
+        .stdout(predicate::str::contains("protocol=17"))
         .stdout(predicate::str::contains("socket=/tmp/herdr.sock"));
+}
+
+#[test]
+fn doctor_uses_the_herdr_binary_injected_by_the_plugin_host() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    for tool in ["git", "pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+    let injected = fixture.bin.join("injected-herdr");
+    std::fs::rename(fixture.bin.join("herdr"), &injected).expect("rename fake herdr");
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_BIN_PATH", &injected)
+        .args(["doctor", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"ready\": true"))
+        .stdout(predicate::str::contains(injected.display().to_string()));
 }
 
 #[test]
@@ -321,11 +346,11 @@ fn configured_project_name_wins_over_local_same_named_directory() {
 #[test]
 fn connect_json_reports_created_workspace_and_recipe() {
     let fixture = Fixture::new();
-    fixture.write_config("hermes");
+    fixture.write_config("opencode");
     fixture.git_repo("sample-app");
     fixture.fake_tool("nvim");
     fixture.fake_tool("lazygit");
-    fixture.fake_tool("hermes");
+    fixture.fake_tool("opencode");
     fixture.fake_herdr(None);
 
     Command::cargo_bin("sheprd")
@@ -338,7 +363,7 @@ fn connect_json_reports_created_workspace_and_recipe() {
             "\"action\": \"created_workspace\"",
         ))
         .stdout(predicate::str::contains(
-            "\"workspace\": \"sample-app-hermes\"",
+            "\"workspace\": \"sample-app-opencode\"",
         ))
         .stdout(predicate::str::contains("\"workspace_id\": \"w_new\""))
         .stdout(predicate::str::contains("\"recipe\": \"agent-dev\""))
@@ -346,15 +371,15 @@ fn connect_json_reports_created_workspace_and_recipe() {
 
     let log = std::fs::read_to_string(fixture.log()).expect("log");
     assert!(log.contains("workspace create"));
-    assert!(log.contains("pane run w_new-2 hermes"));
+    assert!(log.contains("pane run w_new-2 opencode"));
 }
 
 #[test]
 fn connect_new_workspace_creates_plain_workspace_by_default() {
     let fixture = Fixture::new();
-    fixture.write_config("hermes");
+    fixture.write_config("opencode");
     fixture.git_repo("sample-app");
-    fixture.fake_tool("hermes");
+    fixture.fake_tool("opencode");
     fixture.fake_herdr(None);
 
     Command::cargo_bin("sheprd")
@@ -375,11 +400,11 @@ fn connect_new_workspace_creates_plain_workspace_by_default() {
 #[test]
 fn connect_new_workspace_applies_agent_dev_recipe_when_requested() {
     let fixture = Fixture::new();
-    fixture.write_config("hermes");
+    fixture.write_config("opencode");
     fixture.git_repo("sample-app");
     fixture.fake_tool("nvim");
     fixture.fake_tool("lazygit");
-    fixture.fake_tool("hermes");
+    fixture.fake_tool("opencode");
     fixture.fake_herdr(None);
 
     Command::cargo_bin("sheprd")
@@ -399,9 +424,224 @@ fn connect_new_workspace_applies_agent_dev_recipe_when_requested() {
     assert!(log.contains("workspace create"));
     assert!(log.contains("tab rename w_new:1 code"));
     assert!(log.contains("pane run w_new-1 nvim ."));
-    assert!(log.contains("pane run w_new-2 hermes"));
+    assert!(log.contains("pane run w_new-2 opencode"));
     assert!(log.contains("tab create"));
     assert!(log.contains("pane run w_new-4 lazygit"));
+}
+
+#[test]
+fn flok_creates_exactly_four_agents_with_pinned_models_and_worker_worktrees() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env(
+            "HERDR_PLUGIN_STATE_DIR",
+            fixture.home.path().join("plugin-state"),
+        )
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"action\": \"created_flok\""))
+        .stdout(predicate::str::contains(
+            "\"workspace_label\": \"sample-app-flok\"",
+        ))
+        .stdout(predicate::str::contains(
+            "\"model\": \"openai-codex/gpt-5.6-sol\"",
+        ))
+        .stdout(predicate::str::contains("\"model\": \"gpt-5.6-sol\""))
+        .stdout(predicate::str::contains("\"model\": \"claude-opus-5\""))
+        .stdout(predicate::str::contains(
+            "\"model\": \"opencode-go/kimi-k3\"",
+        ))
+        .stdout(predicate::str::contains("\"effort\": \"high\""))
+        .stdout(predicate::str::contains("\"healthy\": true"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert_eq!(log.matches("agent start").count(), 4);
+    assert!(log.contains("--kind pi"));
+    assert!(log.contains("--kind codex"));
+    assert!(log.contains("--kind claude"));
+    assert!(log.contains("--kind opencode"));
+    assert!(log.contains("--agent build --mini"));
+    assert!(log.contains("--model openai-codex/gpt-5.6-sol --thinking high"));
+    assert!(log.contains("--model gpt-5.6-sol --config model_reasoning_effort=high"));
+    assert!(log.contains("--sandbox workspace-write --add-dir"));
+    assert!(log.contains("sample-app/.git"));
+    assert!(log.contains("--model claude-opus-5 --effort high"));
+
+    let branches = std::process::Command::new("git")
+        .args(["branch", "--format=%(refname:short)"])
+        .current_dir(repo)
+        .output()
+        .expect("git branches");
+    let branches = String::from_utf8_lossy(&branches.stdout);
+    assert!(branches.contains("-codex"));
+    assert!(branches.contains("-claude"));
+    assert!(branches.contains("-opencode"));
+
+    let state_root = fixture.home.path().join("plugin-state");
+    assert!(std::fs::read_dir(state_root.join("locks"))
+        .expect("lock directory")
+        .next()
+        .is_none());
+    let state_files = std::fs::read_dir(state_root.join("floks"))
+        .expect("Flok state directory")
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .expect("Flok state entries");
+    assert_eq!(state_files.len(), 1);
+    assert_eq!(
+        state_files[0]
+            .path()
+            .extension()
+            .and_then(|value| value.to_str()),
+        Some("json")
+    );
+    let state = std::fs::read_to_string(state_files[0].path()).expect("Flok state");
+    assert!(state.contains("\"schema_version\": 1"));
+    assert!(state.contains("\"healthy\": true"));
+}
+
+#[test]
+fn flok_rejects_missing_prerequisites_before_creating_worktrees_or_workspace() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "Flok prerequisites are missing from PATH: opencode",
+        ));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(!log.contains("workspace create"));
+    assert!(!log.contains("worktree add"));
+    let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
+    assert_eq!(worktrees.matches("worktree ").count(), 1);
+}
+
+#[test]
+fn flok_rolls_back_clean_resources_when_agent_start_fails() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_FAIL_MATCH", "--kind opencode")
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("closed partial workspace w_new"))
+        .stderr(predicate::str::contains("removed clean partial worktree"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("workspace close w_new"));
+    let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
+    assert_eq!(worktrees.matches("worktree ").count(), 1);
+}
+
+#[test]
+fn flok_preserves_dirty_worker_state_during_rollback() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_DIRTY_ON_KIND", "codex")
+        .env("HERDR_FAIL_MATCH", "--kind claude")
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("preserved dirty partial worktree"));
+
+    let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
+    assert_eq!(worktrees.matches("worktree ").count(), 2);
+    assert!(worktrees.contains("/codex"));
+}
+
+#[test]
+fn flok_refuses_old_herdr_before_mutating_runtime_state() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_TEST_VERSION", "0.7.4")
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "requires Herdr 0.7.5 or newer; running 0.7.4",
+        ));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(!log.contains("workspace create"));
+}
+
+#[test]
+fn existing_flok_without_state_focuses_but_reports_degraded_health() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(Some("sample-app-flok"));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"action\": \"focused_existing\""))
+        .stdout(predicate::str::contains("\"healthy\": false"))
+        .stdout(predicate::str::contains("saved Flok state is missing"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("workspace focus w_existing"));
+    assert!(!log.contains("workspace create"));
+}
+
+fn git_output(repo: &std::path::Path, args: &[&str]) -> String {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(repo)
+        .output()
+        .expect("git command");
+    assert!(output.status.success());
+    String::from_utf8(output.stdout).expect("utf-8 git output")
 }
 
 struct Fixture {
@@ -432,6 +672,10 @@ impl Fixture {
                 format!("{}:/usr/bin:/bin", self.bin.display()),
             ),
             ("HERDR_TEST_LOG".into(), self.log().display().to_string()),
+            (
+                "HERDR_PLUGIN_STATE_DIR".into(),
+                self.home.path().join("plugin-state").display().to_string(),
+            ),
         ]
     }
 
@@ -469,18 +713,58 @@ impl Fixture {
         std::fs::create_dir_all(self.root.join(name).join(".git")).expect("repo");
     }
 
+    fn real_git_repo(&self, name: &str) -> std::path::PathBuf {
+        let repo = self.root.join(name);
+        std::fs::create_dir_all(&repo).expect("repo");
+        for args in [
+            vec!["init", "-q"],
+            vec!["config", "user.email", "test@example.com"],
+            vec!["config", "user.name", "Sheprd Test"],
+        ] {
+            let status = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&repo)
+                .status()
+                .expect("git setup");
+            assert!(status.success());
+        }
+        std::fs::write(repo.join("README.md"), "# fixture\n").expect("seed");
+        let status = std::process::Command::new("git")
+            .args(["add", "README.md"])
+            .current_dir(&repo)
+            .status()
+            .expect("git add");
+        assert!(status.success());
+        let status = std::process::Command::new("git")
+            .args(["commit", "-q", "-m", "seed"])
+            .current_dir(&repo)
+            .status()
+            .expect("git commit");
+        assert!(status.success());
+        repo
+    }
+
     fn fake_tool(&self, name: &str) {
         write_executable(&self.bin.join(name), "#!/bin/sh\nexit 0\n");
     }
 
     fn fake_herdr(&self, existing_label: Option<&str>) {
         let existing = existing_label.unwrap_or("");
+        let workspace_id = if existing.is_empty() {
+            "w_new"
+        } else {
+            "w_existing"
+        };
         let script = format!(
             r#"#!/bin/sh
 printf '%s\n' "$*" >> "$HERDR_TEST_LOG"
+if [ -n "${{HERDR_FAIL_MATCH:-}}" ] && printf '%s' "$*" | grep -F -- "$HERDR_FAIL_MATCH" >/dev/null; then
+  printf 'forced Herdr failure for %s\n' "$HERDR_FAIL_MATCH" >&2
+  exit 42
+fi
 case "$1 $2" in
   "status server")
-    printf 'status: running\nversion: 0.7.1\nprotocol: 14\ncompatible: yes\nsocket: /tmp/herdr.sock\n'
+    printf 'status: running\nversion: %s\nprotocol: 17\ncompatible: yes\nsocket: /tmp/herdr.sock\n' "${{HERDR_TEST_VERSION:-0.7.5}}"
     ;;
   "workspace list")
     if [ -n "{existing}" ]; then
@@ -490,11 +774,30 @@ case "$1 $2" in
     fi
     ;;
   "workspace create")
-    printf '{{"id":"x","result":{{"workspace":{{"workspace_id":"w_new","label":"sample-app-hermes"}},"root_pane":{{"pane_id":"w_new-1","tab_id":"w_new:1"}}}}}}'
+    printf '{{"id":"x","result":{{"workspace":{{"workspace_id":"w_new","label":"%s"}},"root_pane":{{"pane_id":"w_new-1","tab_id":"w_new:1"}}}}}}' "$6"
     ;;
   "pane split")
-    if [ "$5" = "right" ]; then pane="w_new-2"; elif grep -q 'tab create' "$HERDR_TEST_LOG"; then pane="w_new-5"; else pane="w_new-3"; fi
+    if [ "$5" = "right" ]; then pane="w_new-2"; elif [ "$3" = "w_new-2" ]; then pane="w_new-4"; elif grep -q 'tab create' "$HERDR_TEST_LOG"; then pane="w_new-5"; else pane="w_new-3"; fi
     printf '{{"id":"x","result":{{"pane":{{"pane_id":"%s","tab_id":"w_new:1"}}}}}}' "$pane"
+    ;;
+  "agent list")
+    printf '{{"id":"x","result":{{"agents":['
+    awk '
+      $1 == "agent" && $2 == "start" {{
+        if (count++) printf ",";
+        printf "{{\"agent\":\"%s\",\"interactive_ready\":true,\"name\":\"%s\",\"workspace_id\":\"{workspace_id}\"}}", $5, $3
+      }}
+    ' "$HERDR_TEST_LOG"
+    printf ']}}}}'
+    ;;
+  "agent start")
+    if [ -n "${{HERDR_DIRTY_ON_KIND:-}}" ] && [ "$5" = "$HERDR_DIRTY_ON_KIND" ]; then
+      dirty_dir=$(find "$HERDR_PLUGIN_STATE_DIR/worktrees" -type d -name "$5" -print -quit)
+      if [ -n "$dirty_dir" ]; then
+        printf 'preserve me\n' > "$dirty_dir/UNCOMMITTED.txt"
+      fi
+    fi
+    printf '{{"id":"x","result":{{"type":"ok"}}}}'
     ;;
   "tab create")
     printf '{{"id":"x","result":{{"root_pane":{{"pane_id":"w_new-4","tab_id":"w_new:2"}}}}}}'

@@ -7,7 +7,7 @@ mod recipe;
 
 use clap::{CommandFactory, Parser};
 use cli::{Cli, Command};
-use config::Config;
+use config::{Config, FlokConfig};
 use error::{Result, SheprdError};
 use recipe::{Agent, Recipe, RecipeName};
 use serde::Serialize;
@@ -59,6 +59,8 @@ fn run(cli: Cli) -> Result<ExitCode> {
     }
 
     match command {
+        Command::Flok { project } => flok(&config, project.as_deref(), cli.json),
+        Command::Pick => pick(&config, cli.json),
         Command::Init { .. } => unreachable!("init returns before config load"),
         Command::List => list(&config, cli.json),
         Command::Connect { project, recipe } => {
@@ -68,6 +70,75 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::Doctor => doctor(&config, cli.json),
         Command::ShowConfig => show_config(&config, cli.json),
     }
+}
+
+fn flok(config: &Config, selector: Option<&str>, json: bool) -> Result<ExitCode> {
+    let project = match selector {
+        Some(selector) => project::resolve(config, selector)?,
+        None => project::resolve_active(config)?,
+    };
+    let outcome = herdr::open_flok(&project, &config.flok)?;
+    if json {
+        print_json(&outcome)?;
+    } else {
+        println!("Sheprd Flok: {}", outcome.workspace_label);
+        println!("project: {}", outcome.project);
+        println!("workspace: {}", outcome.workspace_id);
+        for agent in &outcome.agents {
+            println!(
+                "  {}: {} · {} · {} · {}",
+                agent.kind, agent.name, agent.model, agent.effort, agent.cwd
+            );
+        }
+        println!(
+            "health: {}",
+            if outcome.healthy { "ready" } else { "degraded" }
+        );
+        for warning in &outcome.warnings {
+            println!("warning: {warning}");
+        }
+        println!("Zoom any pane with your Herdr prefix, then z.");
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn pick(config: &Config, json: bool) -> Result<ExitCode> {
+    use std::io::{self, Write};
+
+    let projects = project::discover(config)?;
+    if projects.is_empty() {
+        return Err(SheprdError::Message(
+            "no git projects were discovered from the configured roots".into(),
+        ));
+    }
+    println!("Sheprd — keep every agent in frame");
+    println!("Choose a project to open as a Flok:\n");
+    for (index, project) in projects.iter().enumerate() {
+        println!(
+            "{:>3}. {:<24} {}",
+            index + 1,
+            project.name,
+            project.path.display()
+        );
+    }
+    print!("\nProject number: ");
+    io::stdout().flush()?;
+    let mut selection = String::new();
+    io::stdin().read_line(&mut selection)?;
+    let index = selection
+        .trim()
+        .parse::<usize>()
+        .ok()
+        .and_then(|value| value.checked_sub(1))
+        .filter(|index| *index < projects.len())
+        .ok_or_else(|| SheprdError::Message("invalid project selection".into()))?;
+    let outcome = herdr::open_flok(&projects[index], &config.flok)?;
+    if json {
+        print_json(&outcome)?;
+    } else {
+        println!("\nOpened {}.", outcome.workspace_label);
+    }
+    Ok(ExitCode::SUCCESS)
 }
 
 #[derive(Serialize)]
@@ -313,12 +384,14 @@ struct Check {
     detail: String,
 }
 
-fn doctor(config: &Config, json: bool) -> Result<ExitCode> {
+fn doctor(_config: &Config, json: bool) -> Result<ExitCode> {
     let mut checks = vec![
-        path_check("herdr"),
-        path_check("nvim"),
-        path_check("lazygit"),
-        path_check(config.default_agent.executable()),
+        herdr_path_check(),
+        path_check("git"),
+        path_check("pi"),
+        path_check("codex"),
+        path_check("claude"),
+        path_check("opencode"),
     ];
 
     let herdr = match herdr::server_status() {
@@ -396,6 +469,7 @@ struct ConfigOutput {
     ignore: Vec<String>,
     max_depth: usize,
     default_agent: Agent,
+    flok: FlokConfig,
 }
 
 #[derive(Serialize)]
@@ -424,6 +498,7 @@ fn show_config(config: &Config, json: bool) -> Result<ExitCode> {
         ignore: config.ignore.clone(),
         max_depth: config.max_depth,
         default_agent: config.default_agent,
+        flok: config.flok.clone(),
     };
     if json {
         print_json(&output)?;
@@ -434,6 +509,14 @@ fn show_config(config: &Config, json: bool) -> Result<ExitCode> {
             if output.exists { "exists" } else { "defaults" }
         );
         println!("default agent: {}", output.default_agent);
+        println!(
+            "Flok: pi={} codex={} claude={} opencode={} effort={}",
+            output.flok.pi_model,
+            output.flok.codex_model,
+            output.flok.claude_model,
+            output.flok.opencode_model,
+            output.flok.effort
+        );
         println!("roots:");
         for root in &output.roots {
             println!("  - {root}");
@@ -446,6 +529,27 @@ fn show_config(config: &Config, json: bool) -> Result<ExitCode> {
         }
     }
     Ok(ExitCode::SUCCESS)
+}
+
+fn herdr_path_check() -> Check {
+    let configured = std::path::PathBuf::from(herdr::herdr_bin());
+    let resolved = if configured.components().count() > 1 {
+        configured.is_file().then_some(configured)
+    } else {
+        configured.to_str().and_then(find_on_path)
+    };
+    match resolved {
+        Some(path) => Check {
+            name: "path:herdr".into(),
+            ok: true,
+            detail: path.display().to_string(),
+        },
+        None => Check {
+            name: "path:herdr".into(),
+            ok: false,
+            detail: "HERDR_BIN_PATH is unusable and herdr was not found on PATH".into(),
+        },
+    }
 }
 
 fn path_check(name: &str) -> Check {

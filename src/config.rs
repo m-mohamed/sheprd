@@ -1,6 +1,6 @@
 use crate::error::{Result, SheprdError};
 use crate::recipe::Agent;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
@@ -11,6 +11,28 @@ pub struct Config {
     pub ignore: Vec<String>,
     pub max_depth: usize,
     pub default_agent: Agent,
+    pub flok: FlokConfig,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct FlokConfig {
+    pub effort: String,
+    pub pi_model: String,
+    pub codex_model: String,
+    pub claude_model: String,
+    pub opencode_model: String,
+}
+
+impl Default for FlokConfig {
+    fn default() -> Self {
+        Self {
+            effort: "high".into(),
+            pi_model: "openai-codex/gpt-5.6-sol".into(),
+            codex_model: "gpt-5.6-sol".into(),
+            claude_model: "claude-opus-5".into(),
+            opencode_model: "opencode-go/kimi-k3".into(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -45,6 +67,16 @@ struct RawConfig {
     ignore: Option<Vec<String>>,
     max_depth: Option<usize>,
     default_agent: Option<Agent>,
+    flok: Option<RawFlokConfig>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RawFlokConfig {
+    effort: Option<String>,
+    pi_model: Option<String>,
+    codex_model: Option<String>,
+    claude_model: Option<String>,
+    opencode_model: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -90,6 +122,7 @@ impl Config {
             ignore: raw.ignore.unwrap_or(defaults.ignore),
             max_depth: raw.max_depth.unwrap_or(defaults.max_depth),
             default_agent: raw.default_agent.unwrap_or(defaults.default_agent),
+            flok: merge_flok(defaults.flok, raw.flok),
             path,
         })
     }
@@ -112,6 +145,7 @@ impl Config {
             ],
             max_depth: 6,
             default_agent: Agent::Codex,
+            flok: FlokConfig::default(),
         })
     }
 }
@@ -157,7 +191,14 @@ pub fn config_path() -> Result<PathBuf> {
     if let Some(path) = std::env::var_os("SHEPRD_CONFIG") {
         return Ok(PathBuf::from(path));
     }
-    Ok(home()?.join(".config/sheprd/config.toml"))
+    let legacy = home()?.join(".config/sheprd/config.toml");
+    if let Some(dir) = std::env::var_os("HERDR_PLUGIN_CONFIG_DIR") {
+        let plugin = PathBuf::from(dir).join("config.toml");
+        if plugin.exists() || !legacy.exists() {
+            return Ok(plugin);
+        }
+    }
+    Ok(legacy)
 }
 
 pub fn default_root_strings() -> Vec<String> {
@@ -183,6 +224,14 @@ fn sample_config(default_agent: Agent, roots: &[String]) -> String {
         format!("default_agent = \"{default_agent}\""),
         "max_depth = 6".into(),
         "".into(),
+        "# Flok launches exactly four visible agents at high effort.".into(),
+        "[flok]".into(),
+        "effort = \"high\"".into(),
+        "pi_model = \"openai-codex/gpt-5.6-sol\"".into(),
+        "codex_model = \"gpt-5.6-sol\"".into(),
+        "claude_model = \"claude-opus-5\"".into(),
+        "opencode_model = \"opencode-go/kimi-k3\"".into(),
+        "".into(),
         "# Use explicit projects when the public name should differ from the directory name."
             .into(),
         "# [[projects]]".into(),
@@ -199,6 +248,17 @@ fn sample_config(default_agent: Agent, roots: &[String]) -> String {
         "]".into(),
     ]);
     format!("{}\n", lines.join("\n"))
+}
+
+fn merge_flok(defaults: FlokConfig, raw: Option<RawFlokConfig>) -> FlokConfig {
+    let raw = raw.unwrap_or_default();
+    FlokConfig {
+        effort: raw.effort.unwrap_or(defaults.effort),
+        pi_model: raw.pi_model.unwrap_or(defaults.pi_model),
+        codex_model: raw.codex_model.unwrap_or(defaults.codex_model),
+        claude_model: raw.claude_model.unwrap_or(defaults.claude_model),
+        opencode_model: raw.opencode_model.unwrap_or(defaults.opencode_model),
+    }
 }
 
 fn escape_toml_string(value: &str) -> String {

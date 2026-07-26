@@ -6,10 +6,8 @@ use std::fmt;
 #[serde(rename_all = "kebab-case")]
 pub enum Agent {
     Pi,
-    Droid,
     Claude,
     Codex,
-    Hermes,
     Opencode,
 }
 
@@ -17,10 +15,8 @@ impl Agent {
     pub fn executable(self) -> &'static str {
         match self {
             Self::Pi => "pi",
-            Self::Droid => "droid",
             Self::Claude => "claude",
             Self::Codex => "codex",
-            Self::Hermes => "hermes",
             Self::Opencode => "opencode",
         }
     }

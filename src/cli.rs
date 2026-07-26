@@ -3,9 +3,9 @@ use clap::{Parser, Subcommand};
 
 #[derive(Clone, Debug, Parser)]
 #[command(name = "sheprd")]
-#[command(version, about = "Smart session manager for Herdr")]
+#[command(version, about = "Keep every coding agent in frame with Herdr")]
 #[command(
-    long_about = "sheprd is a smart session manager for Herdr. It finds the project you mean, chooses the agent lane you want, connects to the matching Herdr workspace, and can apply explicit sample recipes when you ask for them."
+    long_about = "Sheprd is a Herdr plugin for opening a visible four-agent Flok: Pi conducts while Codex, Claude Code, and OpenCode work in isolated git worktrees."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -26,6 +26,16 @@ pub struct Cli {
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command {
+    /// Open or focus a four-agent Flok for a project.
+    Flok {
+        /// Project name or git checkout path. Defaults to the active Herdr project.
+        project: Option<String>,
+    },
+
+    /// Pick a project interactively and open its Flok.
+    #[command(hide = true)]
+    Pick,
+
     /// Print or write a starter config file.
     Init {
         /// Print the starter config instead of writing it.
