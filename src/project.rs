@@ -3,6 +3,7 @@ use crate::error::{Result, SheprdError};
 use crate::recipe::Agent;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 #[derive(Clone, Debug)]
 pub struct Project {
@@ -83,13 +84,41 @@ fn project_from_nested_path(path: &Path) -> Result<Project> {
     let canonical = path.canonicalize()?;
     for candidate in canonical.ancestors() {
         if candidate.join(".git").exists() {
-            return project_from_path(candidate);
+            let project = project_from_path(candidate)?;
+            if let Some(base) = linked_worktree_base(&project.path) {
+                return project_from_path(&base);
+            }
+            return Ok(project);
         }
     }
     Err(SheprdError::Message(format!(
         "project path is not inside a git repository: {}",
         path.display()
     )))
+}
+
+fn linked_worktree_base(path: &Path) -> Option<PathBuf> {
+    let output = Command::new("git")
+        .args([
+            "-C",
+            path.to_str()?,
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-common-dir",
+        ])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let common = PathBuf::from(String::from_utf8(output.stdout).ok()?.trim())
+        .canonicalize()
+        .ok()?;
+    if common.file_name().and_then(|value| value.to_str()) != Some(".git") {
+        return None;
+    }
+    let base = common.parent()?.to_path_buf();
+    (base != path).then_some(base)
 }
 
 fn selector_is_path_like(selector: &str, path: &Path) -> bool {

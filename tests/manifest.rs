@@ -82,4 +82,24 @@ fn plugin_manifest_is_a_transparent_install_and_action_contract() {
         .collect::<Vec<_>>();
     assert!(cleanup_command.contains(&"cleanup"));
     assert!(!cleanup_command.contains(&"--confirm"));
+
+    let panes = plugin["panes"].as_array().expect("panes");
+    assert_eq!(panes.len(), 2);
+    for pane in panes {
+        assert_eq!(
+            pane["placement"].as_str(),
+            Some("overlay"),
+            "Herdr 0.7.5 accepts overlay, not the retired popup placement"
+        );
+    }
+
+    for script in ["open-flok-picker.sh", "open-flok-cleanup.sh"] {
+        let contents = fs::read_to_string(root.join("scripts").join(script)).expect("launcher");
+        assert!(contents.contains("--placement overlay"));
+        assert!(!contents.contains("--width"));
+        assert!(!contents.contains("--height"));
+    }
+    let cleanup_launcher =
+        fs::read_to_string(root.join("scripts/open-flok-cleanup.sh")).expect("cleanup launcher");
+    assert!(cleanup_launcher.contains("HERDR_PLUGIN_CONTEXT_JSON=$HERDR_PLUGIN_CONTEXT_JSON"));
 }

@@ -194,15 +194,13 @@ fn cargo_package_keeps_public_support_files() {
         "herdr-plugin.toml",
         "scripts/install-plugin.sh",
         "scripts/**/*.sh",
-        ".github/**/*.yml",
-        ".github/pull_request_template.md",
-        ".githooks/*",
         "website/**/*.html",
         "website/assets/sheprd-mark.svg",
         "justfile",
         "SECURITY.md",
         "deny.toml",
         "rust-toolchain.toml",
+        "publish = false",
     ] {
         assert!(
             manifest.contains(needle),
@@ -228,6 +226,7 @@ fn github_workflows_enforce_public_smoke_surface() {
         "definitely-not-a-project",
         "cargo package --locked",
         "bash -n scripts/install-plugin.sh",
+        "shellcheck scripts/*.sh",
         "Validate GitHub metadata",
         "os: [ubuntu-latest, macos-latest]",
     ] {
@@ -238,12 +237,12 @@ fn github_workflows_enforce_public_smoke_surface() {
         "Verify tag, crate, and plugin versions agree",
         "Verify changelog section exists",
         "--draft",
-        "taiki-e/upload-rust-binary-action@v1",
+        "taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6",
         "aarch64-apple-darwin",
         "x86_64-unknown-linux-musl",
         "aarch64-unknown-linux-musl",
         "checksum: sha256",
-        "actions/attest-build-provenance@v4",
+        "actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373",
         "--draft=false",
     ] {
         assert!(
@@ -255,10 +254,36 @@ fn github_workflows_enforce_public_smoke_surface() {
     for needle in [
         "schedule:",
         "cron:",
-        "EmbarkStudios/cargo-deny-action@v2",
+        "EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25",
         "command: check",
     ] {
         assert!(audit.contains(needle), "audit workflow is missing {needle}");
+    }
+}
+
+#[test]
+fn github_actions_are_pinned_by_full_commit_sha() {
+    let workflows = repo_root().join(".github/workflows");
+    for entry in fs::read_dir(workflows).expect("workflows") {
+        let path = entry.expect("workflow entry").path();
+        if path.extension().and_then(|value| value.to_str()) != Some("yml") {
+            continue;
+        }
+        let contents = fs::read_to_string(&path).expect("workflow contents");
+        for line in contents.lines() {
+            let Some(action) = line.trim_start().strip_prefix("- uses: ") else {
+                continue;
+            };
+            let reference = action
+                .split_once('@')
+                .map(|(_, value)| value.split_whitespace().next().unwrap_or_default())
+                .unwrap_or_default();
+            assert!(
+                reference.len() == 40 && reference.chars().all(|value| value.is_ascii_hexdigit()),
+                "{} contains an unpinned action: {action}",
+                path.display()
+            );
+        }
     }
 }
 

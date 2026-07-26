@@ -7,18 +7,22 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Verify tag, crate, and plugin versions agree
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          crate="$(sed -nE 's/^version = "([^"]+)"/\1/p' Cargo.toml | head -n 1)"
-          manifest="$(sed -nE 's/^version = "([^"]+)"/\1/p' herdr-plugin.toml | head -n 1)"
+          crate="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')"
+          manifest="$(python3 -c 'import tomllib; print(tomllib.load(open("herdr-plugin.toml", "rb"))["version"])')"
           test "$tag" = "$crate"
           test "$tag" = "$manifest"
       - name: Verify changelog section exists
@@ -30,7 +34,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Create draft release with exact changelog notes
@@ -72,17 +76,17 @@ jobs:
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: taiki-e/upload-rust-binary-action@v1
+      - uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1
         with:
           bin: sheprd
           target: ${{ matrix.target }}
           archive: $bin-$target
           checksum: sha256
           token: ${{ github.token }}
-      - uses: actions/attest-build-provenance@v4
+      - uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
         with:
           subject-path: sheprd-${{ matrix.target }}.tar.gz
 

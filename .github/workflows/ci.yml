@@ -17,13 +17,13 @@ jobs:
     name: fmt · clippy · package · smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.92.0
+      - uses: dtolnay/rust-toolchain@387aeee55b189f024a4f6d94890c5b18d73339cc # 1.92.0
         with:
           components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -34,7 +34,9 @@ jobs:
       - name: Package crate
         run: cargo package --locked
       - name: Validate plugin installer shell
-        run: bash -n scripts/install-plugin.sh scripts/open-flok-picker.sh scripts/open-flok-cleanup.sh
+        run: |
+          bash -n scripts/install-plugin.sh scripts/open-flok-picker.sh scripts/open-flok-cleanup.sh
+          shellcheck scripts/*.sh
       - name: CLI smoke
         run: |
           target/release/sheprd --help
@@ -68,9 +70,9 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.92.0
-      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@387aeee55b189f024a4f6d94890c5b18d73339cc # 1.92.0
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - run: cargo test --locked

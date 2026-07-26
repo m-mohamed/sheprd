@@ -17,7 +17,7 @@
       <main class="content">
         <section id="install"><h2>Install</h2><pre>herdr plugin install m-mohamed/sheprd
 herdr plugin action list --plugin m-mohamed.sheprd
-herdr plugin action invoke m-mohamed.sheprd.doctor</pre><p>The build step verifies the exact release archive's SHA-256. If no verified prebuilt is available, it performs a locked source build.</p></section>
+herdr plugin action invoke m-mohamed.sheprd.doctor</pre><p>The build step verifies the exact release archive's SHA-256 and GitHub provenance. If no verified prebuilt is available, it performs a locked source build.</p></section>
         <section id="open"><h2>Open a Flok</h2><pre>herdr plugin action invoke m-mohamed.sheprd.open-flok
 # or choose a configured project
 herdr plugin action invoke m-mohamed.sheprd.choose-flok</pre><div class="callout">A new Flok requires a clean checkout. An existing Flok is focused and health-checked, never silently reshaped.</div></section>
@@ -26,7 +26,7 @@ herdr agent prompt &lt;name&gt; '&lt;bounded task&gt;'
 herdr agent wait &lt;name&gt; --until idle --timeout 120000
 herdr agent read &lt;name&gt; --source recent --lines 120 --format text</pre><p>Pi conducts. Codex, Claude Code, and OpenCode work in isolated branches/worktrees. Repository checks—not agent prose—are the proof.</p></section>
         <section id="cleanup"><h2>Preview, then confirm</h2><pre>herdr plugin action invoke m-mohamed.sheprd.cleanup-preview
-herdr plugin action invoke m-mohamed.sheprd.cleanup-flok</pre><p>The popup requires the project name. Dirty or out-of-scope paths are preserved, branches are never deleted, and the state receipt is archived.</p></section>
+herdr plugin action invoke m-mohamed.sheprd.cleanup-flok</pre><p>The overlay requires the project name. Dirty or out-of-scope paths are preserved, branches are never deleted, and the state receipt is archived.</p></section>
         <section id="trust"><h2>Know what runs</h2><p>Herdr plugins execute as your user and are not sandboxed. Review <code>herdr-plugin.toml</code>, <code>scripts/install-plugin.sh</code>, and the runtime scripts before installation. Doctor cannot prove model credits or billing.</p></section>
         <section id="reference"><h2>Reference</h2><div class="links">
           <a class="link" href="../docs/commands.md">Command contract →</a><a class="link" href="../SKILL.md">Agent operator skill →</a>

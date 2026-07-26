@@ -103,7 +103,7 @@ it is preserved.
 The Herdr actions are:
 
 - `m-mohamed.sheprd.cleanup-preview`: headless JSON preview, never confirms;
-- `m-mohamed.sheprd.cleanup-flok`: popup preview requiring the project name.
+- `m-mohamed.sheprd.cleanup-flok`: overlay preview requiring the project name.
 
 JSON includes `confirmed`, `can_cleanup`, `workspace_closed`,
 `state_archived_to`, per-worktree `exists`/`clean`/`removed` fields, and

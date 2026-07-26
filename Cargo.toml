@@ -10,6 +10,7 @@ homepage = "https://github.com/m-mohamed/sheprd"
 documentation = "https://github.com/m-mohamed/sheprd/tree/main/docs"
 keywords = ["herdr", "coding-agents", "multi-agent", "terminal", "orchestration"]
 categories = ["command-line-utilities", "development-tools"]
+publish = false
 include = [
   "src/**/*",
   "scripts/open-flok-picker.sh",
@@ -20,9 +21,6 @@ include = [
   "website/assets/sheprd-mark.svg",
   "website/**/*.html",
   "scripts/**/*.sh",
-  ".github/**/*.yml",
-  ".github/pull_request_template.md",
-  ".githooks/*",
   "README.md",
   "AGENTS.md",
   "LICENSE",

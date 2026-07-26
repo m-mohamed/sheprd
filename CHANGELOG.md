@@ -14,11 +14,11 @@
   health checks, partial-failure rollback, and dirty-state preservation.
 - Added preview-first cleanup that validates path ownership, rechecks Git state
   after workspace close, preserves branches, and archives receipts.
-- Added exact-version prebuilt installation with SHA-256 verification, locked
-  source fallback, hermetic installer tests, four-target releases, and build
-  provenance attestations.
-- Added Linux/macOS CI, weekly advisory/license/source audits, a security
-  policy, and a pinned Rust toolchain.
+- Added exact-version prebuilt installation with enforced SHA-256 and GitHub
+  provenance verification, locked source fallback, hermetic installer tests,
+  four-target releases, and build provenance attestations.
+- Added Linux/macOS CI, ShellCheck, weekly advisory/license/source audits, a
+  security policy, a pinned Rust toolchain, and commit-pinned workflow actions.
 
 ### Changed
 
@@ -34,6 +34,8 @@
 - Prioritize configured project names over same-named local directories when
   resolving `sheprd connect <project>`.
 - Use Herdr's injected `HERDR_BIN_PATH` instead of assuming `herdr` is on PATH.
+- Reject untrusted release-origin overrides and remove clean worktrees without
+  bypassing Git's dirty-state guard.
 - Upgraded `crossbeam-epoch` to the line fixed for RUSTSEC-2026-0204.
 
 ## v0.1.0 - 2026-07-03

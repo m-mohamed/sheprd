@@ -22,6 +22,10 @@ All four default to high effort. Pi conducts from the clean base checkout with
 read/search/shell tools and no direct editing tools. The three workers receive
 separate branches and worktrees. There are no hidden subagents.
 
+OpenCode retains its native permission prompts. If it blocks on access outside
+its worker checkout, Pi should surface the request and wait for a human rather
+than bypassing it.
+
 ## Install and preflight
 
 ```bash
@@ -30,10 +34,10 @@ herdr plugin action list --plugin m-mohamed.sheprd
 herdr plugin action invoke m-mohamed.sheprd.doctor
 ```
 
-The installer fetches an exact-version release archive, checks SHA-256, and
-falls back to a locked source build only when a verified prebuilt is
-unavailable. Herdr does not sandbox plugins; tell the human to review the
-manifest and named scripts.
+The installer fetches an exact-version release archive, checks SHA-256 and
+GitHub provenance, and falls back to a locked source build only when a verified
+prebuilt is unavailable. Herdr does not sandbox plugins; tell the human to
+review the manifest and named scripts.
 
 Doctor verifies Herdr, Git, Pi, Codex, Claude Code, and OpenCode. It does not
 prove that provider billing, model access, or credits are available.
@@ -73,7 +77,7 @@ herdr plugin action invoke m-mohamed.sheprd.cleanup-preview
 herdr plugin action invoke m-mohamed.sheprd.cleanup-flok
 ```
 
-The second action opens a popup and requires the project name. Sheprd checks
+The second action opens an overlay and requires the project name. Sheprd checks
 that every path belongs to its state root, refuses dirty worktrees, closes the
 workspace first, removes clean checkouts, preserves branches, and archives the
 state JSON. If anything becomes dirty during shutdown, it stops and preserves

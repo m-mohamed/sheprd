@@ -474,7 +474,7 @@ fn flok_creates_exactly_four_agents_with_pinned_models_and_worker_worktrees() {
     assert!(log.contains("--kind codex"));
     assert!(log.contains("--kind claude"));
     assert!(log.contains("--kind opencode"));
-    assert!(log.contains("--agent build --mini"));
+    assert!(log.contains("--agent build --model opencode-go/kimi-k3 --mini"));
     assert!(log.contains("--model openai-codex/gpt-5.6-sol --thinking high"));
     assert!(log.contains("--model gpt-5.6-sol --config model_reasoning_effort=high"));
     assert!(log.contains("--sandbox workspace-write --add-dir"));
@@ -664,6 +664,36 @@ fn cleanup_previews_without_closing_workspace_or_removing_worktrees() {
     assert!(!log.contains("workspace close w_existing"));
     let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
     assert_eq!(worktrees.matches("worktree ").count(), 4);
+}
+
+#[test]
+fn cleanup_from_a_worker_context_resolves_the_base_project() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+    open_test_flok(&fixture, &repo);
+    let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
+    let codex = worktrees
+        .lines()
+        .filter_map(|line| line.strip_prefix("worktree "))
+        .find(|path| path.ends_with("/codex"))
+        .expect("codex worktree");
+    fixture.fake_herdr(Some("sample-app-flok"));
+    let context = serde_json::json!({ "focused_pane_cwd": codex });
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_PLUGIN_CONTEXT_JSON", context.to_string())
+        .args(["cleanup", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"project\": \"sample-app\""))
+        .stdout(predicate::str::contains("\"can_cleanup\": true"));
 }
 
 #[test]

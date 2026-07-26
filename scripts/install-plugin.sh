@@ -2,9 +2,9 @@
 # Herdr managed-install build step.
 #
 # The checkout's manifest version selects an exact GitHub release. Supported
-# machines receive a SHA-256-verified prebuilt binary; unavailable assets or
-# download tools fall back to a locked source build. A checksum mismatch is a
-# hard failure and never executes the downloaded bytes.
+# machines receive a SHA-256- and provenance-verified prebuilt binary;
+# unavailable assets or verification tools fall back to a locked source build.
+# A verification mismatch is a hard failure and never executes downloaded bytes.
 set -euo pipefail
 
 name="sheprd"
@@ -12,7 +12,7 @@ repo="m-mohamed/sheprd"
 root="${SHEPRD_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 manifest="$root/herdr-plugin.toml"
 output="${SHEPRD_PLUGIN_OUTPUT:-$root/target/release/sheprd}"
-release_base="${SHEPRD_RELEASE_BASE_URL:-https://github.com/$repo/releases/download}"
+release_base="https://github.com/$repo/releases/download"
 
 have() {
   command -v "$1" >/dev/null 2>&1
@@ -47,9 +47,7 @@ fallback() {
 
 download() {
   if have curl; then
-    curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors "$1" -o "$2"
-  elif have wget; then
-    wget -q -O "$2" "$1"
+    curl --proto '=https' --tlsv1.2 -fsSL --retry 5 --retry-delay 2 --retry-all-errors "$1" -o "$2"
   else
     return 127
   fi
@@ -68,6 +66,10 @@ sha256_of() {
 version=$(sed -nE 's/^version = "([^"]+)"/\1/p' "$manifest" | head -n 1)
 if [ -z "$version" ]; then
   fallback "could not read a version from $manifest"
+fi
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+  printf '%s\n' "$name: refusing invalid manifest version '$version'" >&2
+  exit 1
 fi
 
 os="${SHEPRD_UNAME_S:-$(uname -s)}"
@@ -102,6 +104,14 @@ if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
     "$name: checksum mismatch for $archive" \
     "expected: ${expected:-missing}" \
     "actual:   $actual" >&2
+  exit 1
+fi
+
+if ! have gh; then
+  fallback "GitHub CLI is required to verify build provenance"
+fi
+if ! gh attestation verify "$temporary/$archive" --repo "$repo" >/dev/null; then
+  printf '%s\n' "$name: build-provenance verification failed for $archive" >&2
   exit 1
 fi
 

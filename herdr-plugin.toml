@@ -50,13 +50,11 @@ command = ["bash", "scripts/open-flok-cleanup.sh"]
 [[panes]]
 id = "project-picker"
 title = "Sheprd — Open Flok"
-placement = "popup"
+placement = "overlay"
 command = ["./target/release/sheprd", "pick"]
 
 [[panes]]
 id = "cleanup-confirm"
 title = "Sheprd — Clean up Flok"
-placement = "popup"
-width = "90%"
-height = "80%"
+placement = "overlay"
 command = ["./target/release/sheprd", "cleanup-prompt"]

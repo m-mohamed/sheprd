@@ -9,6 +9,11 @@ fi
 VERSION="$1"
 OUTPUT="$2"
 
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+  echo "error: invalid release version: $VERSION" >&2
+  exit 64
+fi
+
 awk -v version="$VERSION" '
   BEGIN {
     capture = 0

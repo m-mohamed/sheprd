@@ -10,6 +10,9 @@ the PR yet.
 
 Using AI to write code is fine. Submitting code you do not understand is not.
 
+By submitting a contribution, you agree that it is licensed under the
+repository's `AGPL-3.0-or-later` license.
+
 ## Product Boundary
 
 Herdr owns runtime state:

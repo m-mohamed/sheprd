@@ -77,7 +77,7 @@ Move the exact temporary directory to Trash after the receipt is captured.
 
 The automated suite covers missing CLIs, Herdr `0.7.4`, forced agent-start
 failure, clean rollback, dirty rollback preservation, missing state, injected
-`HERDR_BIN_PATH`, checksum mismatch, dirty cleanup refusal, and typed popup
+`HERDR_BIN_PATH`, checksum mismatch, dirty cleanup refusal, and typed overlay
 confirmation. Re-run the named tests when changing those paths:
 
 ```bash

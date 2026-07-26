@@ -57,7 +57,8 @@ herdr plugin action invoke m-mohamed.sheprd.doctor
 ```
 
 Confirm the install preview names `scripts/install-plugin.sh`; the log reports
-an exact-version checksum-verified binary, not an unexplained source build.
+an exact-version checksum- and provenance-verified binary, not an unexplained
+source build.
 Reinstall once to verify replacement of the managed checkout.
 
 ## 5. Marketplace discovery

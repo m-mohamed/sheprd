@@ -27,6 +27,7 @@ audit:
 
 shell-check:
     bash -n scripts/install-plugin.sh scripts/open-flok-picker.sh scripts/open-flok-cleanup.sh scripts/install-local.sh scripts/extract-release-notes.sh
+    shellcheck scripts/*.sh
 
 build:
     cargo build --release --locked

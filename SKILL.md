@@ -66,7 +66,7 @@ Use the interactive action for mutation:
 herdr plugin action invoke m-mohamed.sheprd.cleanup-flok
 ```
 
-The popup requires the active project name. Cleanup refuses dirty or
+The overlay requires the active project name. Cleanup refuses dirty or
 out-of-scope paths, preserves branches, and archives the state receipt. Never
 delete a worker checkout manually until its Git state and branch are understood.
 

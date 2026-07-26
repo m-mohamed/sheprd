@@ -32,9 +32,9 @@ git push origin vX.Y.Z
 
 The workflow validates version agreement and exact changelog notes, creates a
 draft release, builds four target archives, adds SHA-256 sidecars and GitHub
-provenance attestations, then publishes only after every target succeeds. A
-failed target leaves a draft for inspection rather than a partial public
-release.
+provenance attestations, then publishes only after every target succeeds. Every
+workflow action is pinned to a full commit SHA. A failed target leaves a draft
+for inspection rather than a partial public release.
 
 Supported release targets:
 

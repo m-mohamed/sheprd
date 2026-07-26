@@ -240,7 +240,8 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
             "right",
             None,
         )?;
-        run_herdr(["pane", "rename", &codex_pane.pane_id, "Codex · Sol"])?;
+        let codex_title = format!("Codex · {}", config.codex_model);
+        run_herdr(["pane", "rename", &codex_pane.pane_id, &codex_title])?;
 
         let claude_pane = split_pane_with_env(
             &claude_worktree.path,
@@ -248,7 +249,8 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
             "down",
             None,
         )?;
-        run_herdr(["pane", "rename", &claude_pane.pane_id, "Claude · Opus"])?;
+        let claude_title = format!("Claude · {}", config.claude_model);
+        run_herdr(["pane", "rename", &claude_pane.pane_id, &claude_title])?;
 
         let opencode_inline_config = serde_json::json!({
             "model": config.opencode_model,
@@ -267,19 +269,15 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
             "down",
             Some(("OPENCODE_CONFIG_CONTENT", &opencode_inline_config)),
         )?;
-        run_herdr([
-            "pane",
-            "rename",
-            &opencode_pane.pane_id,
-            "OpenCode · Kimi K3",
-        ])?;
+        let opencode_title = format!("OpenCode · {}", config.opencode_model);
+        run_herdr(["pane", "rename", &opencode_pane.pane_id, &opencode_title])?;
 
         let pi_name = agent_name(project, "pi");
         let codex_name = agent_name(project, "codex");
         let claude_name = agent_name(project, "claude");
         let opencode_name = agent_name(project, "opencode");
         let conductor_prompt = format!(
-            "You are the dedicated Sheprd Flok conductor for {}. Keep the codebase clean: do not edit project files yourself. Delegate implementation, review, and test packets to the three visible Herdr workers with `herdr agent prompt`, monitor them with `herdr agent wait` and `herdr agent read`, then synthesize and verify their work. The workers are Codex `{codex_name}` at {}, Claude Code `{claude_name}` at {}, and OpenCode `{opencode_name}` at {}. Each worker already has an isolated git worktree. Never spawn hidden subagents, never add more coding agents, and never claim success without repository checks.",
+            "You are the dedicated Sheprd Flok conductor for {}. Keep the codebase clean: do not edit project files yourself. Delegate implementation, review, and test packets to the three visible Herdr workers with `herdr agent prompt`, monitor them with `herdr agent wait` and `herdr agent read`, then synthesize and verify their work. The workers are Codex `{codex_name}` at {}, Claude Code `{claude_name}` at {}, and OpenCode `{opencode_name}` at {}. Each worker already has an isolated git worktree. If a worker becomes blocked on a native permission prompt, surface it and wait for human approval; never bypass the prompt. Never spawn hidden subagents, never add more coding agents, and never claim success without repository checks.",
             project.name,
             codex_worktree.path.display(),
             claude_worktree.path.display(),
@@ -340,7 +338,13 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
             &opencode_pane.pane_id,
             &opencode_name,
             "opencode",
-            &["--agent".into(), "build".into(), "--mini".into()],
+            &[
+                "--agent".into(),
+                "build".into(),
+                "--model".into(),
+                config.opencode_model.clone(),
+                "--mini".into(),
+            ],
         )?;
 
         let mut outcome = FlokOutcome {
@@ -857,7 +861,7 @@ fn rollback_partial_flok(
 
 fn remove_worker_worktree(project: &Project, worktree: &WorkerWorktree) -> Result<()> {
     let output = Command::new("git")
-        .args(["worktree", "remove", "--force"])
+        .args(["worktree", "remove"])
         .arg(&worktree.path)
         .current_dir(&project.path)
         .output()?;

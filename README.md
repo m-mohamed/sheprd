@@ -53,6 +53,8 @@ Sheprd is the product name. Flok is the four-agent mode.
 - Git
 - authenticated `pi`, `codex`, `claude`, and `opencode` CLIs
 - access to the configured models through your own accounts/subscriptions
+- `curl` plus GitHub CLI for a verified prebuilt, or Rust `1.92+` for the locked
+  source-build fallback
 
 `sheprd doctor` verifies executables and the Herdr runtime boundary. It cannot
 verify provider credits, billing, rate limits, or model entitlement before an
@@ -69,9 +71,10 @@ herdr plugin action invoke m-mohamed.sheprd.doctor
 ```
 
 Managed installation downloads a prebuilt binary for the exact manifest
-version and verifies its SHA-256 checksum. If a matching asset or download tool
-is unavailable, the installer says so and falls back to
-`cargo build --release --locked`. A checksum mismatch is a hard failure. See
+version, verifies its SHA-256 checksum, and uses GitHub CLI to verify its build
+provenance. If a matching asset, `curl`, or `gh` is unavailable, the installer
+says so and falls back to `cargo build --release --locked`. A checksum or
+provenance mismatch is a hard failure. See
 [`SECURITY.md`](SECURITY.md) for the complete trust boundary.
 
 Pin a revision when you want a reproducible source checkout:
@@ -113,12 +116,12 @@ description = "choose project and open Flok"
 | Action | Behavior |
 | --- | --- |
 | `m-mohamed.sheprd.open-flok` | Open or focus Flok for the active project |
-| `m-mohamed.sheprd.choose-flok` | Open the project picker popup |
+| `m-mohamed.sheprd.choose-flok` | Open the project picker overlay |
 | `m-mohamed.sheprd.doctor` | Log a non-mutating readiness report |
 | `m-mohamed.sheprd.cleanup-preview` | Log a non-mutating cleanup preview |
-| `m-mohamed.sheprd.cleanup-flok` | Open a typed-confirmation cleanup popup |
+| `m-mohamed.sheprd.cleanup-flok` | Open a typed-confirmation cleanup overlay |
 
-The cleanup popup refuses dirty or out-of-scope worker paths, closes the Herdr
+The cleanup overlay refuses dirty or out-of-scope worker paths, closes the Herdr
 workspace before removing checkouts, preserves all worker branches, and moves
 the state receipt into plugin history.
 

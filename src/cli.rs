@@ -42,7 +42,7 @@ pub enum Command {
         confirm: bool,
     },
 
-    /// Interactively confirm cleanup inside a Herdr popup.
+    /// Interactively confirm cleanup inside a Herdr overlay.
     #[command(hide = true)]
     CleanupPrompt,
 
