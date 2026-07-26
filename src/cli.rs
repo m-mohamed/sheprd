@@ -32,6 +32,16 @@ pub enum Command {
         project: Option<String>,
     },
 
+    /// Preview or perform safe cleanup of a Flok workspace and worker checkouts.
+    Cleanup {
+        /// Project name or git checkout path. Defaults to the active Herdr project.
+        project: Option<String>,
+
+        /// Close the Flok and remove only verified-clean worker checkouts.
+        #[arg(long)]
+        confirm: bool,
+    },
+
     /// Pick a project interactively and open its Flok.
     #[command(hide = true)]
     Pick,

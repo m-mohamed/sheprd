@@ -75,6 +75,29 @@ pub struct FlokOutcome {
     pub warnings: Vec<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct FlokCleanupOutcome {
+    pub project: String,
+    pub workspace_id: Option<String>,
+    pub state_path: String,
+    pub confirmed: bool,
+    pub can_cleanup: bool,
+    pub workspace_closed: bool,
+    pub state_archived_to: Option<String>,
+    pub worktrees: Vec<FlokCleanupWorktree>,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct FlokCleanupWorktree {
+    pub kind: String,
+    pub path: String,
+    pub branch: String,
+    pub exists: bool,
+    pub clean: bool,
+    pub removed: bool,
+}
+
 #[derive(Debug, Deserialize)]
 struct HerdrEnvelope<T> {
     result: T,
@@ -391,6 +414,179 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
             )))
         }
     }
+}
+
+pub fn cleanup_flok(project: &Project, confirm: bool) -> Result<FlokCleanupOutcome> {
+    ensure_server()?;
+    ensure_minimum_herdr_version()?;
+    let _lock = FlokLock::acquire(project)?;
+    let state_path = flok_state_path(project)?;
+    let contents = std::fs::read_to_string(&state_path).map_err(|error| {
+        SheprdError::Message(format!(
+            "could not read Flok state at {}: {error}",
+            state_path.display()
+        ))
+    })?;
+    let state: FlokOutcome = serde_json::from_str(&contents).map_err(|error| {
+        SheprdError::Message(format!(
+            "could not parse Flok state at {}: {error}",
+            state_path.display()
+        ))
+    })?;
+    let workspace_id = workspaces()?
+        .into_iter()
+        .find(|workspace| workspace.label == state.workspace_label)
+        .map(|workspace| workspace.workspace_id);
+    let mut warnings = Vec::new();
+    let workers = state
+        .agents
+        .iter()
+        .filter_map(|agent| {
+            agent.branch.as_ref().map(|branch| {
+                (
+                    agent.kind.clone(),
+                    PathBuf::from(&agent.cwd),
+                    branch.clone(),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    if workers.len() != 3 {
+        warnings.push(format!(
+            "saved state describes {} worker checkouts instead of 3",
+            workers.len()
+        ));
+    }
+
+    let mut worktrees = workers
+        .into_iter()
+        .map(|(kind, path, branch)| {
+            let owned = worktree_path_is_owned(project, &path)?;
+            if !owned {
+                warnings.push(format!(
+                    "refusing out-of-scope worktree path from saved state: {}",
+                    path.display()
+                ));
+            }
+            let exists = path.exists();
+            let clean = if exists && owned {
+                checkout_is_clean(&path)?
+            } else {
+                !exists && owned
+            };
+            Ok(FlokCleanupWorktree {
+                kind,
+                path: path.display().to_string(),
+                branch,
+                exists,
+                clean,
+                removed: false,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    for worktree in &worktrees {
+        if worktree.exists && !worktree.clean {
+            warnings.push(format!(
+                "worker checkout is dirty and will be preserved: {}",
+                worktree.path
+            ));
+        }
+    }
+
+    let mut outcome = FlokCleanupOutcome {
+        project: project.name.clone(),
+        workspace_id,
+        state_path: state_path.display().to_string(),
+        confirmed: confirm,
+        can_cleanup: warnings.is_empty(),
+        workspace_closed: false,
+        state_archived_to: None,
+        worktrees: worktrees.clone(),
+        warnings,
+    };
+    if !confirm || !outcome.can_cleanup {
+        return Ok(outcome);
+    }
+
+    if let Some(workspace_id) = outcome.workspace_id.as_deref() {
+        run_herdr(["workspace", "close", workspace_id]).map_err(|error| {
+            SheprdError::Message(format!(
+                "could not close Flok workspace {workspace_id}; no worker checkouts were removed: {error}"
+            ))
+        })?;
+        outcome.workspace_closed = true;
+    }
+
+    for worktree in &mut worktrees {
+        if !worktree.exists {
+            worktree.removed = true;
+            continue;
+        }
+        let path = PathBuf::from(&worktree.path);
+        worktree.clean = checkout_is_clean(&path)?;
+        if !worktree.clean {
+            outcome.can_cleanup = false;
+            outcome.warnings.push(format!(
+                "worker checkout became dirty while closing the Flok and was preserved: {}",
+                worktree.path
+            ));
+        }
+    }
+    if !outcome.can_cleanup {
+        outcome.worktrees = worktrees;
+        return Ok(outcome);
+    }
+
+    for worktree in &mut worktrees {
+        if worktree.removed {
+            continue;
+        }
+        let worker = WorkerWorktree {
+            path: PathBuf::from(&worktree.path),
+            branch: worktree.branch.clone(),
+        };
+        match remove_worker_worktree(project, &worker) {
+            Ok(()) => worktree.removed = true,
+            Err(error) => {
+                outcome.can_cleanup = false;
+                outcome.warnings.push(format!(
+                    "could not remove clean worker checkout {}: {error}",
+                    worktree.path
+                ));
+            }
+        }
+    }
+    outcome.worktrees = worktrees;
+    if !outcome.can_cleanup {
+        return Ok(outcome);
+    }
+
+    let history_dir = plugin_state_root()?.join("history");
+    std::fs::create_dir_all(&history_dir)?;
+    let archived = history_dir.join(format!(
+        "{}-{}.json",
+        short_hash(&project.path),
+        flok_run_id()
+    ));
+    std::fs::rename(&state_path, &archived)?;
+    outcome.state_archived_to = Some(archived.display().to_string());
+    Ok(outcome)
+}
+
+fn worktree_path_is_owned(project: &Project, path: &Path) -> Result<bool> {
+    if path
+        .components()
+        .any(|component| component == std::path::Component::ParentDir)
+    {
+        return Ok(false);
+    }
+    let expected = plugin_state_root()?
+        .join("worktrees")
+        .join(short_hash(&project.path));
+    if path.exists() && expected.exists() {
+        return Ok(path.canonicalize()?.starts_with(expected.canonicalize()?));
+    }
+    Ok(path.starts_with(expected))
 }
 
 fn flok_state_schema_version() -> u32 {

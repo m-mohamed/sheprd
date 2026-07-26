@@ -60,6 +60,9 @@ fn run(cli: Cli) -> Result<ExitCode> {
 
     match command {
         Command::Flok { project } => flok(&config, project.as_deref(), cli.json),
+        Command::Cleanup { project, confirm } => {
+            cleanup(&config, project.as_deref(), confirm, cli.json)
+        }
         Command::Pick => pick(&config, cli.json),
         Command::Init { .. } => unreachable!("init returns before config load"),
         Command::List => list(&config, cli.json),
@@ -70,6 +73,57 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::Doctor => doctor(&config, cli.json),
         Command::ShowConfig => show_config(&config, cli.json),
     }
+}
+
+fn cleanup(config: &Config, selector: Option<&str>, confirm: bool, json: bool) -> Result<ExitCode> {
+    let project = match selector {
+        Some(selector) => project::resolve(config, selector)?,
+        None => project::resolve_active(config)?,
+    };
+    let outcome = herdr::cleanup_flok(&project, confirm)?;
+    if json {
+        print_json(&outcome)?;
+    } else {
+        println!(
+            "Flok cleanup: {}",
+            if outcome.confirmed {
+                "confirmed"
+            } else {
+                "preview"
+            }
+        );
+        println!("project: {}", outcome.project);
+        println!(
+            "safe to clean: {}",
+            if outcome.can_cleanup { "yes" } else { "no" }
+        );
+        for worktree in &outcome.worktrees {
+            println!(
+                "  {}: {} · {} · branch preserved: {}",
+                worktree.kind,
+                if worktree.removed {
+                    "removed"
+                } else if worktree.clean {
+                    "clean"
+                } else {
+                    "dirty"
+                },
+                worktree.path,
+                worktree.branch
+            );
+        }
+        for warning in &outcome.warnings {
+            println!("warning: {warning}");
+        }
+        if !confirm && outcome.can_cleanup {
+            println!("Run again with --confirm to close the Flok and remove clean checkouts.");
+        }
+    }
+    Ok(if outcome.can_cleanup {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    })
 }
 
 fn flok(config: &Config, selector: Option<&str>, json: bool) -> Result<ExitCode> {

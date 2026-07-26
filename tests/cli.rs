@@ -634,6 +634,141 @@ fn existing_flok_without_state_focuses_but_reports_degraded_health() {
     assert!(!log.contains("workspace create"));
 }
 
+#[test]
+fn cleanup_previews_without_closing_workspace_or_removing_worktrees() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+    open_test_flok(&fixture, &repo);
+    fixture.fake_herdr(Some("sample-app-flok"));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["cleanup", &repo.display().to_string(), "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"confirmed\": false"))
+        .stdout(predicate::str::contains("\"can_cleanup\": true"))
+        .stdout(predicate::str::contains("\"removed\": false"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(!log.contains("workspace close w_existing"));
+    let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
+    assert_eq!(worktrees.matches("worktree ").count(), 4);
+}
+
+#[test]
+fn cleanup_confirm_removes_clean_checkouts_preserves_branches_and_archives_state() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+    open_test_flok(&fixture, &repo);
+    fixture.fake_herdr(Some("sample-app-flok"));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args([
+            "cleanup",
+            &repo.display().to_string(),
+            "--confirm",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"confirmed\": true"))
+        .stdout(predicate::str::contains("\"workspace_closed\": true"))
+        .stdout(predicate::str::contains("\"removed\": true"))
+        .stdout(predicate::str::contains("\"state_archived_to\":"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("workspace close w_existing"));
+    let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
+    assert_eq!(worktrees.matches("worktree ").count(), 1);
+    let branches = git_output(&repo, &["branch", "--format=%(refname:short)"]);
+    assert_eq!(
+        branches
+            .lines()
+            .filter(|line| line.contains("flok/"))
+            .count(),
+        3
+    );
+    let state_root = fixture.home.path().join("plugin-state");
+    assert!(std::fs::read_dir(state_root.join("floks"))
+        .expect("state dir")
+        .next()
+        .is_none());
+    assert_eq!(
+        std::fs::read_dir(state_root.join("history"))
+            .expect("history dir")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn cleanup_confirm_refuses_dirty_worker_before_closing_workspace() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+    open_test_flok(&fixture, &repo);
+    let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
+    let codex = worktrees
+        .lines()
+        .filter_map(|line| line.strip_prefix("worktree "))
+        .find(|path| path.ends_with("/codex"))
+        .expect("codex worktree");
+    std::fs::write(
+        std::path::Path::new(codex).join("UNCOMMITTED.txt"),
+        "keep\n",
+    )
+    .expect("dirty worker");
+    fixture.fake_herdr(Some("sample-app-flok"));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args([
+            "cleanup",
+            &repo.display().to_string(),
+            "--confirm",
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("\"can_cleanup\": false"))
+        .stdout(predicate::str::contains(
+            "worker checkout is dirty and will be preserved",
+        ));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(!log.contains("workspace close w_existing"));
+    let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
+    assert_eq!(worktrees.matches("worktree ").count(), 4);
+}
+
+fn open_test_flok(fixture: &Fixture, repo: &std::path::Path) {
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .success();
+}
+
 fn git_output(repo: &std::path::Path, args: &[&str]) -> String {
     let output = std::process::Command::new("git")
         .args(args)
