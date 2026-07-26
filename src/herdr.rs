@@ -277,11 +277,8 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
         let claude_name = agent_name(project, "claude");
         let opencode_name = agent_name(project, "opencode");
         let conductor_prompt = format!(
-            "You are the dedicated Sheprd Flok conductor for {}. Keep the codebase clean: do not edit project files yourself. Delegate implementation, review, and test packets to the three visible Herdr workers with `herdr agent prompt`, monitor them with `herdr agent wait` and `herdr agent read`, then synthesize and verify their work. The workers are Codex `{codex_name}` at {}, Claude Code `{claude_name}` at {}, and OpenCode `{opencode_name}` at {}. Each worker already has an isolated git worktree. If a worker becomes blocked on a native permission prompt, surface it and wait for human approval; never bypass the prompt. Never spawn hidden subagents, never add more coding agents, and never claim success without repository checks.",
+            "Sheprd conductor for {}. Do not edit project files. Delegate with `herdr agent prompt/wait/read` to Codex `{codex_name}`, Claude `{claude_name}`, and OpenCode `{opencode_name}`; their panes already use isolated worktrees. Surface blocked permissions for human approval. Never spawn hidden or additional agents. Verify outcomes with repository checks.",
             project.name,
-            codex_worktree.path.display(),
-            claude_worktree.path.display(),
-            opencode_worktree.path.display(),
         );
 
         start_agent(
@@ -1050,7 +1047,23 @@ fn start_agent(pane_id: &str, name: &str, kind: &str, agent_args: &[String]) -> 
         "--".into(),
     ];
     args.extend_from_slice(agent_args);
-    run_herdr_args(&args)
+    for attempt in 0..150 {
+        let output = Command::new(herdr_bin()).args(&args).output()?;
+        if output.status.success() {
+            return Ok(());
+        }
+        let error = command_error(output.stderr);
+        let pane_is_starting = error.contains("agent_pane_busy")
+            || error.contains("not an available shell")
+            || error.contains("pane is busy");
+        if !pane_is_starting || attempt == 149 {
+            return Err(SheprdError::Message(format!(
+                "could not start {kind} agent {name}: {error}"
+            )));
+        }
+        thread::sleep(Duration::from_millis(200));
+    }
+    unreachable!("bounded agent-start loop returns on success or final failure")
 }
 
 fn apply_agent_dev(cwd: &Path, agent: Agent, created: &WorkspaceCreated) -> Result<()> {
@@ -1280,15 +1293,6 @@ fn inside_herdr() -> bool {
 }
 
 fn run_herdr<const N: usize>(args: [&str; N]) -> Result<()> {
-    let output = Command::new(herdr_bin()).args(args).output()?;
-    if output.status.success() {
-        Ok(())
-    } else {
-        Err(SheprdError::Message(command_error(output.stderr)))
-    }
-}
-
-fn run_herdr_args(args: &[String]) -> Result<()> {
     let output = Command::new(herdr_bin()).args(args).output()?;
     if output.status.success() {
         Ok(())

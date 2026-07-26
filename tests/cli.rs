@@ -480,6 +480,15 @@ fn flok_creates_exactly_four_agents_with_pinned_models_and_worker_worktrees() {
     assert!(log.contains("--sandbox workspace-write --add-dir"));
     assert!(log.contains("sample-app/.git"));
     assert!(log.contains("--model claude-opus-5 --effort high"));
+    let pi_start = log
+        .lines()
+        .find(|line| line.starts_with("agent start") && line.contains("--kind pi"))
+        .expect("Pi start command");
+    assert!(pi_start.contains("Never spawn hidden or additional agents"));
+    assert!(
+        pi_start.len() < 1024,
+        "Pi startup command must stay below conservative PTY input limits"
+    );
 
     let branches = std::process::Command::new("git")
         .args(["branch", "--format=%(refname:short)"])
@@ -564,6 +573,35 @@ fn flok_rolls_back_clean_resources_when_agent_start_fails() {
     assert!(log.contains("workspace close w_new"));
     let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
     assert_eq!(worktrees.matches("worktree ").count(), 1);
+}
+
+#[test]
+fn flok_retries_a_temporarily_busy_agent_pane() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_BUSY_ONCE", fixture.home.path().join("busy-once"))
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"healthy\": true"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("busy-once agent start"));
+    assert_eq!(
+        log.lines()
+            .filter(|line| line.starts_with("agent start"))
+            .count(),
+        4
+    );
 }
 
 #[test]
@@ -966,6 +1004,12 @@ impl Fixture {
         };
         let script = format!(
             r#"#!/bin/sh
+if [ -n "${{HERDR_BUSY_ONCE:-}}" ] && [ "$1 $2" = "agent start" ] && [ ! -e "$HERDR_BUSY_ONCE" ]; then
+  : > "$HERDR_BUSY_ONCE"
+  printf 'busy-once %s\n' "$*" >> "$HERDR_TEST_LOG"
+  printf '{{"error":{{"code":"agent_pane_busy","message":"agent target pane is not an available shell"}}}}\n' >&2
+  exit 42
+fi
 printf '%s\n' "$*" >> "$HERDR_TEST_LOG"
 if [ -n "${{HERDR_FAIL_MATCH:-}}" ] && printf '%s' "$*" | grep -F -- "$HERDR_FAIL_MATCH" >/dev/null; then
   printf 'forced Herdr failure for %s\n' "$HERDR_FAIL_MATCH" >&2
