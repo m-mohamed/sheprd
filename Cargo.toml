@@ -2,6 +2,7 @@
 name = "sheprd"
 version = "0.2.0"
 edition = "2021"
+rust-version = "1.92"
 description = "Keep every coding agent in frame with Herdr"
 license = "AGPL-3.0-or-later"
 documentation = "https://docs.rs/sheprd"
@@ -10,6 +11,7 @@ categories = ["command-line-utilities", "development-tools"]
 include = [
   "src/**/*",
   "scripts/open-flok-picker.sh",
+  "scripts/install-plugin.sh",
   "herdr-plugin.toml",
   "tests/**/*",
   "docs/**/*.md",
@@ -24,6 +26,9 @@ include = [
   "LICENSE",
   "CHANGELOG.md",
   "CONTRIBUTING.md",
+  "SECURITY.md",
+  "deny.toml",
+  "rust-toolchain.toml",
   "SKILL.md",
   "agent-guide.md",
   "justfile",

@@ -31,13 +31,13 @@ awk -v version="$VERSION" '
     }
   }
 ' CHANGELOG.md > "$OUTPUT" || {
-  cat > "$OUTPUT" <<EOF
-See CHANGELOG.md for release notes.
-EOF
+  rm -f "$OUTPUT"
+  echo "error: CHANGELOG.md has no section for version $VERSION" >&2
+  exit 2
 }
 
 if [ ! -s "$OUTPUT" ]; then
-  cat > "$OUTPUT" <<EOF
-See CHANGELOG.md for release notes.
-EOF
+  rm -f "$OUTPUT"
+  echo "error: CHANGELOG.md section for version $VERSION is empty" >&2
+  exit 2
 fi

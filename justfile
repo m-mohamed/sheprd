@@ -1,8 +1,8 @@
 # sheprd task runner
 
-ci: lint test
+ci: lint test shell-check
 
-check: ci chaos-smoke failure-smoke package
+check: ci audit chaos-smoke failure-smoke package
 
 prelaunch-check project=".":
     just check
@@ -20,7 +20,13 @@ lint:
     cargo clippy --all-targets -- -D warnings
 
 test:
-    cargo test
+    cargo test --locked
+
+audit:
+    cargo deny check
+
+shell-check:
+    bash -n scripts/install-plugin.sh scripts/open-flok-picker.sh scripts/install-local.sh scripts/extract-release-notes.sh
 
 build:
     cargo build --release --locked
@@ -31,6 +37,8 @@ chaos-smoke: build
     target/release/sheprd init --print
     target/release/sheprd init --print --json
     target/release/sheprd connect --help
+    target/release/sheprd flok --help
+    target/release/sheprd cleanup --help
     target/release/sheprd recipes
     target/release/sheprd recipes --json
     target/release/sheprd show-config
@@ -56,6 +64,9 @@ install-smoke: build
     rm -rf /tmp/sheprd-install-smoke
     SHEPRD_INSTALL_DIR=/tmp/sheprd-install-smoke scripts/install-local.sh
     /tmp/sheprd-install-smoke/sheprd --version
+
+plugin-install-test:
+    cargo test --locked --test install_plugin
 
 live-smoke project=".": build
     target/release/sheprd doctor --json

@@ -3,67 +3,55 @@ name: CI
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
-jobs:
-  rust:
-    runs-on: ubuntu-latest
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
 
+jobs:
+  check:
+    name: fmt · clippy · package · smoke
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.92.0
         with:
           components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
         run: cargo fmt --all -- --check
-
       - name: Lint
         run: cargo clippy --all-targets -- -D warnings
-
-      - name: Test
-        run: cargo test
-
       - name: Build release binary
         run: cargo build --release --locked
-
+      - name: Package crate
+        run: cargo package --locked
+      - name: Validate plugin installer shell
+        run: bash -n scripts/install-plugin.sh scripts/open-flok-picker.sh
       - name: CLI smoke
         run: |
           target/release/sheprd --help
-          target/release/sheprd init --help
-          target/release/sheprd init --print
+          target/release/sheprd flok --help
+          target/release/sheprd cleanup --help
+          target/release/sheprd doctor --help
           target/release/sheprd init --print --json
-          target/release/sheprd connect --help
-          target/release/sheprd recipes
           target/release/sheprd recipes --json
-          target/release/sheprd show-config
-
+          target/release/sheprd show-config --json
       - name: JSON failure smoke
         run: |
-          if target/release/sheprd connect definitely-not-a-project --json >"$RUNNER_TEMP/sheprd-json-error.out" 2>"$RUNNER_TEMP/sheprd-json-error.err"; then
+          if target/release/sheprd connect definitely-not-a-project --json >"$RUNNER_TEMP/out" 2>"$RUNNER_TEMP/err"; then
             exit 1
           fi
-          test ! -s "$RUNNER_TEMP/sheprd-json-error.out"
-          grep '"ok": false' "$RUNNER_TEMP/sheprd-json-error.err"
-          grep '"exit_code": 2' "$RUNNER_TEMP/sheprd-json-error.err"
-          grep "definitely-not-a-project" "$RUNNER_TEMP/sheprd-json-error.err"
-
-      - name: Package crate
-        run: cargo package --locked
-
-      - name: Install smoke
-        run: |
-          SHEPRD_INSTALL_DIR="$RUNNER_TEMP/sheprd-install" scripts/install-local.sh
-          "$RUNNER_TEMP/sheprd-install/sheprd" --version
-
+          test ! -s "$RUNNER_TEMP/out"
+          grep '"ok": false' "$RUNNER_TEMP/err"
+          grep '"exit_code": 2' "$RUNNER_TEMP/err"
       - name: Validate GitHub metadata
         run: |
           ruby -ryaml -e 'ARGV.each { |path| YAML.load_file(path); puts "ok #{path}" }' \
@@ -71,3 +59,18 @@ jobs:
             .github/ISSUE_TEMPLATE/*.yml \
             .github/DISCUSSION_TEMPLATE/*.yml \
             .github/dependabot.yml
+
+  test:
+    name: test · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.92.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked

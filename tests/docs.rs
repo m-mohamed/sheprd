@@ -166,14 +166,14 @@ fn agent_guide_covers_teaching_surface() {
     );
 
     for needle in [
-        "This guide is different from `SKILL.md`",
-        "Sheprd is a Herdr companion, not a terminal runtime.",
-        "sheprd doctor --json",
-        "sheprd connect my-project --no-attach",
-        "herdr.protocol_ready",
-        "Do not teach Sheprd as",
-        "sample recipe",
-        "Herdr workspace, tab, or pane ids",
+        "Sheprd is a Herdr plugin.",
+        "Flok",
+        "m-mohamed.sheprd.doctor",
+        "Pi conductor",
+        "OpenCode · Kimi K3",
+        "no hidden subagents",
+        "Raw socket",
+        "Herdr IDs are live values",
     ] {
         assert!(guide.contains(needle), "agent guide is missing {needle}");
     }
@@ -186,6 +186,8 @@ fn cargo_package_keeps_public_support_files() {
     for needle in [
         "AGENTS.md",
         "agent-guide.md",
+        "herdr-plugin.toml",
+        "scripts/install-plugin.sh",
         "scripts/**/*.sh",
         ".github/**/*.yml",
         ".github/pull_request_template.md",
@@ -193,6 +195,9 @@ fn cargo_package_keeps_public_support_files() {
         "website/**/*.html",
         "website/assets/sheprd-mark.svg",
         "justfile",
+        "SECURITY.md",
+        "deny.toml",
+        "rust-toolchain.toml",
     ] {
         assert!(
             manifest.contains(needle),
@@ -207,30 +212,48 @@ fn github_workflows_enforce_public_smoke_surface() {
     let ci = fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("ci workflow");
     let release =
         fs::read_to_string(root.join(".github/workflows/release.yml")).expect("release workflow");
+    let audit =
+        fs::read_to_string(root.join(".github/workflows/audit.yml")).expect("audit workflow");
 
     for needle in [
         "target/release/sheprd init --print --json",
+        "target/release/sheprd flok --help",
+        "target/release/sheprd cleanup --help",
         "JSON failure smoke",
         "definitely-not-a-project",
         "cargo package --locked",
-        "scripts/install-local.sh",
+        "bash -n scripts/install-plugin.sh",
         "Validate GitHub metadata",
+        "os: [ubuntu-latest, macos-latest]",
     ] {
         assert!(ci.contains(needle), "CI workflow is missing {needle}");
     }
 
     for needle in [
-        "target/release/sheprd init --print --json",
-        "JSON failure smoke",
-        "definitely-not-a-project",
-        "cargo package --locked",
-        "CONTRIBUTING.md AGENTS.md SKILL.md agent-guide.md justfile",
-        "cp -R .github .githooks docs scripts website",
+        "Verify tag, crate, and plugin versions agree",
+        "Verify changelog section exists",
+        "--draft",
+        "taiki-e/upload-rust-binary-action@v1",
+        "aarch64-apple-darwin",
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-musl",
+        "checksum: sha256",
+        "actions/attest-build-provenance@v4",
+        "--draft=false",
     ] {
         assert!(
             release.contains(needle),
             "release workflow is missing {needle}"
         );
+    }
+
+    for needle in [
+        "schedule:",
+        "cron:",
+        "EmbarkStudios/cargo-deny-action@v2",
+        "command: check",
+    ] {
+        assert!(audit.contains(needle), "audit workflow is missing {needle}");
     }
 }
 
