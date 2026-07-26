@@ -38,6 +38,6 @@ This is the public trust scorecard for the Sheprd Herdr plugin.
    repository commit and test receipt.
 5. Independent review finds no unresolved correctness, security, docs, or
    packaging issue.
-6. Public visibility, `v0.2.0`, release assets, checksums, attestations, clean
+6. Public visibility, `v0.2.1`, release assets, checksums, attestations, clean
    public install, `herdr-plugin` topic, and marketplace listing are verified
    as separate receipts.

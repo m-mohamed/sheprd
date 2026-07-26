@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.2.1 - 2026-07-26
+
+### Fixed
+
+- Keep Flok receipts and worker checkouts under the stable Sheprd state root so
+  standalone CLI and managed Herdr plugin actions share the same Flok.
+- Read legacy `v0.2.0` plugin-scoped state during focus and cleanup so existing
+  Floks remain recoverable after upgrading.
+
 ## v0.2.0 - 2026-07-25
 
 ### Added

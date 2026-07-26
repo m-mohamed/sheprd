@@ -80,7 +80,7 @@ provenance mismatch is a hard failure. See
 Pin a revision when you want a reproducible source checkout:
 
 ```bash
-herdr plugin install m-mohamed/sheprd --ref v0.2.0
+herdr plugin install m-mohamed/sheprd --ref v0.2.1
 ```
 
 ## Open a Flok
@@ -158,7 +158,9 @@ legacy `~/.config/sheprd/config.toml`. Existing dotfiles do not need to move.
 - A new Flok validates Herdr `0.7.5+`, config, all four CLIs, and a clean Git
   checkout before it creates runtime state.
 - A per-project operation lock prevents concurrent Flok creation/cleanup.
-- State records are written atomically under `HERDR_PLUGIN_STATE_DIR`.
+- State records are written atomically under `SHEPRD_STATE_DIR`, or
+  `~/.local/state/sheprd` by default, so CLI and managed plugin actions share
+  the same Flok. Legacy `v0.2.0` plugin-scoped state remains readable.
 - Partial creation closes the partial workspace, removes only clean temporary
   worktrees, and reports every rollback decision.
 - Dirty worktrees are never deleted automatically.

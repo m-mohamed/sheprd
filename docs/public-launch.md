@@ -6,8 +6,8 @@ gates: source, release, install, topic, and marketplace discovery.
 
 ## 1. Release commit
 
-- `Cargo.toml` and `herdr-plugin.toml` both declare `0.2.0`.
-- `CHANGELOG.md` has a non-empty `## v0.2.0` section.
+- `Cargo.toml` and `herdr-plugin.toml` both declare `0.2.1`.
+- `CHANGELOG.md` has a non-empty `## v0.2.1` section.
 - README, CLI help, manifest descriptions, docs, security policy, and website
   agree on Sheprd/Flok and the four-agent roster.
 - `just check`, the live plugin gate, disposable Flok gate, and real-project
@@ -28,9 +28,9 @@ gates: source, release, install, topic, and marketplace discovery.
 ## 3. Release
 
 ```bash
-git tag -a v0.2.0 -m "v0.2.0"
+git tag -a v0.2.1 -m "v0.2.1"
 git push origin main
-git push origin v0.2.0
+git push origin v0.2.1
 ```
 
 The tag workflow must:
@@ -50,7 +50,7 @@ Unlink the development checkout, then install from GitHub:
 
 ```bash
 herdr plugin unlink m-mohamed.sheprd
-herdr plugin install m-mohamed/sheprd --ref v0.2.0
+herdr plugin install m-mohamed/sheprd --ref v0.2.1
 herdr plugin list
 herdr plugin action list --plugin m-mohamed.sheprd
 herdr plugin action invoke m-mohamed.sheprd.doctor

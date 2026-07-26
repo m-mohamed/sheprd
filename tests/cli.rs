@@ -446,10 +446,7 @@ fn flok_creates_exactly_four_agents_with_pinned_models_and_worker_worktrees() {
     Command::cargo_bin("sheprd")
         .expect("binary")
         .envs(fixture.env())
-        .env(
-            "HERDR_PLUGIN_STATE_DIR",
-            fixture.home.path().join("plugin-state"),
-        )
+        .env("SHEPRD_STATE_DIR", fixture.home.path().join("plugin-state"))
         .args(["flok", &repo.display().to_string(), "--json"])
         .assert()
         .success()
@@ -735,6 +732,76 @@ fn cleanup_from_a_worker_context_resolves_the_base_project() {
 }
 
 #[test]
+fn plugin_host_state_scoping_does_not_hide_a_cli_created_flok() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env_remove("SHEPRD_STATE_DIR")
+        .env(
+            "HERDR_PLUGIN_STATE_DIR",
+            fixture.home.path().join("first-plugin-scope"),
+        )
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .success();
+
+    fixture.fake_herdr(Some("sample-app-flok"));
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env_remove("SHEPRD_STATE_DIR")
+        .env(
+            "HERDR_PLUGIN_STATE_DIR",
+            fixture.home.path().join("second-plugin-scope"),
+        )
+        .args(["cleanup", &repo.display().to_string(), "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"can_cleanup\": true"))
+        .stdout(predicate::str::contains(".local/state/sheprd/floks"));
+}
+
+#[test]
+fn cleanup_reads_v020_plugin_scoped_state_for_compatibility() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+    let legacy_state = fixture.home.path().join("legacy-plugin-state");
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("SHEPRD_STATE_DIR", &legacy_state)
+        .args(["flok", &repo.display().to_string(), "--json"])
+        .assert()
+        .success();
+
+    fixture.fake_herdr(Some("sample-app-flok"));
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env_remove("SHEPRD_STATE_DIR")
+        .env("HERDR_PLUGIN_STATE_DIR", &legacy_state)
+        .args(["cleanup", &repo.display().to_string(), "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"can_cleanup\": true"))
+        .stdout(predicate::str::contains("legacy-plugin-state/floks"));
+}
+
+#[test]
 fn cleanup_confirm_removes_clean_checkouts_preserves_branches_and_archives_state() {
     let fixture = Fixture::new();
     fixture.write_config("codex");
@@ -920,7 +987,7 @@ impl Fixture {
             ),
             ("HERDR_TEST_LOG".into(), self.log().display().to_string()),
             (
-                "HERDR_PLUGIN_STATE_DIR".into(),
+                "SHEPRD_STATE_DIR".into(),
                 self.home.path().join("plugin-state").display().to_string(),
             ),
         ]
@@ -1045,7 +1112,7 @@ case "$1 $2" in
     ;;
   "agent start")
     if [ -n "${{HERDR_DIRTY_ON_KIND:-}}" ] && [ "$5" = "$HERDR_DIRTY_ON_KIND" ]; then
-      dirty_dir=$(find "$HERDR_PLUGIN_STATE_DIR/worktrees" -type d -name "$5" -print -quit)
+      dirty_dir=$(find "$SHEPRD_STATE_DIR/worktrees" -type d -name "$5" -print -quit)
       if [ -n "$dirty_dir" ]; then
         printf 'preserve me\n' > "$dirty_dir/UNCOMMITTED.txt"
       fi

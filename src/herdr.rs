@@ -206,7 +206,12 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
         .find(|workspace| workspace.label == label)
     {
         run_herdr(["workspace", "focus", &workspace.workspace_id])?;
-        return focused_flok_outcome(project, workspace, label, state_path);
+        return focused_flok_outcome(
+            project,
+            workspace,
+            label,
+            existing_flok_state_path(project)?,
+        );
     }
 
     validate_flok_config(config)?;
@@ -421,7 +426,7 @@ pub fn cleanup_flok(project: &Project, confirm: bool) -> Result<FlokCleanupOutco
     ensure_server()?;
     ensure_minimum_herdr_version()?;
     let _lock = FlokLock::acquire(project)?;
-    let state_path = flok_state_path(project)?;
+    let state_path = existing_flok_state_path(project)?;
     let contents = std::fs::read_to_string(&state_path).map_err(|error| {
         SheprdError::Message(format!(
             "could not read Flok state at {}: {error}",
@@ -562,7 +567,7 @@ pub fn cleanup_flok(project: &Project, confirm: bool) -> Result<FlokCleanupOutco
         return Ok(outcome);
     }
 
-    let history_dir = plugin_state_root()?.join("history");
+    let history_dir = sheprd_state_root()?.join("history");
     std::fs::create_dir_all(&history_dir)?;
     let archived = history_dir.join(format!(
         "{}-{}.json",
@@ -581,13 +586,18 @@ fn worktree_path_is_owned(project: &Project, path: &Path) -> Result<bool> {
     {
         return Ok(false);
     }
-    let expected = plugin_state_root()?
-        .join("worktrees")
-        .join(short_hash(&project.path));
-    if path.exists() && expected.exists() {
-        return Ok(path.canonicalize()?.starts_with(expected.canonicalize()?));
+    let canonical_path = path.exists().then(|| path.canonicalize()).transpose()?;
+    for state_root in state_roots_for_read()? {
+        let expected = state_root.join("worktrees").join(short_hash(&project.path));
+        if let Some(canonical_path) = canonical_path.as_ref() {
+            if expected.exists() && canonical_path.starts_with(expected.canonicalize()?) {
+                return Ok(true);
+            }
+        } else if path.starts_with(expected) {
+            return Ok(true);
+        }
     }
-    Ok(path.starts_with(expected))
+    Ok(false)
 }
 
 fn flok_state_schema_version() -> u32 {
@@ -737,7 +747,7 @@ struct FlokLock {
 
 impl FlokLock {
     fn acquire(project: &Project) -> Result<Self> {
-        let lock_dir = plugin_state_root()?.join("locks");
+        let lock_dir = sheprd_state_root()?.join("locks");
         std::fs::create_dir_all(&lock_dir)?;
         let lock_path = lock_dir.join(format!("{}.lock", short_hash(&project.path)));
         for attempt in 0..2 {
@@ -952,7 +962,7 @@ fn checkout_is_clean(cwd: &Path) -> Result<bool> {
 }
 
 fn create_worker_worktree(project: &Project, role: &str, run_id: &str) -> Result<WorkerWorktree> {
-    let state_root = plugin_state_root()?;
+    let state_root = sheprd_state_root()?;
     let repo_id = short_hash(&project.path);
     let path = state_root
         .join("worktrees")
@@ -976,8 +986,8 @@ fn create_worker_worktree(project: &Project, role: &str, run_id: &str) -> Result
     Ok(WorkerWorktree { path, branch })
 }
 
-fn plugin_state_root() -> Result<PathBuf> {
-    if let Some(path) = std::env::var_os("HERDR_PLUGIN_STATE_DIR") {
+fn sheprd_state_root() -> Result<PathBuf> {
+    if let Some(path) = std::env::var_os("SHEPRD_STATE_DIR") {
         return Ok(PathBuf::from(path));
     }
     let home = std::env::var_os("HOME").ok_or(SheprdError::MissingHome)?;
@@ -985,9 +995,40 @@ fn plugin_state_root() -> Result<PathBuf> {
 }
 
 fn flok_state_path(project: &Project) -> Result<PathBuf> {
-    Ok(plugin_state_root()?
+    Ok(sheprd_state_root()?
         .join("floks")
         .join(format!("{}.json", short_hash(&project.path))))
+}
+
+fn existing_flok_state_path(project: &Project) -> Result<PathBuf> {
+    let stable = flok_state_path(project)?;
+    if stable.exists() {
+        return Ok(stable);
+    }
+    if let Some(legacy) = legacy_plugin_state_root() {
+        let candidate = legacy
+            .join("floks")
+            .join(format!("{}.json", short_hash(&project.path)));
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    Ok(stable)
+}
+
+fn state_roots_for_read() -> Result<Vec<PathBuf>> {
+    let stable = sheprd_state_root()?;
+    let mut roots = vec![stable.clone()];
+    if let Some(legacy) = legacy_plugin_state_root() {
+        if legacy != stable {
+            roots.push(legacy);
+        }
+    }
+    Ok(roots)
+}
+
+fn legacy_plugin_state_root() -> Option<PathBuf> {
+    std::env::var_os("HERDR_PLUGIN_STATE_DIR").map(PathBuf::from)
 }
 
 fn flok_run_id() -> String {
