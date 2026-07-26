@@ -26,9 +26,9 @@ gh attestation verify sheprd-TARGET.tar.gz --repo m-mohamed/sheprd
   per worker.
 - Partial creation rolls back only checkouts that are still clean. Dirty state
   is preserved and reported.
-- Cleanup is preview-only from the Herdr action. The CLI requires
-  `--confirm`, refuses dirty or out-of-scope paths, preserves worker branches,
-  and archives the state receipt.
+- The headless cleanup action is preview-only. The interactive Herdr popup
+  requires the project name; the CLI requires `--confirm`. Both refuse dirty or
+  out-of-scope paths, preserve worker branches, and archive the state receipt.
 - Herdr does not sandbox plugins. Sheprd does not claim otherwise.
 
 ## Reporting a vulnerability

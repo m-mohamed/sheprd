@@ -286,12 +286,12 @@ fn connect_json_reports_existing_workspace() {
 #[test]
 fn explicit_projects_keep_configured_name_for_custom_path() {
     let fixture = Fixture::new();
-    fixture.write_config_with_project("codex", "corvus", "corvus-pride-month-logo");
-    fixture.git_repo("corvus-pride-month-logo");
+    fixture.write_config_with_project("codex", "display-app", "display-app-feature");
+    fixture.git_repo("display-app-feature");
     fixture.fake_tool("nvim");
     fixture.fake_tool("lazygit");
     fixture.fake_tool("codex");
-    fixture.fake_herdr(Some("corvus-codex"));
+    fixture.fake_herdr(Some("display-app-codex"));
 
     Command::cargo_bin("sheprd")
         .expect("binary")
@@ -299,14 +299,16 @@ fn explicit_projects_keep_configured_name_for_custom_path() {
         .args(["list", "--json"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"name\": \"corvus\""))
-        .stdout(predicate::str::contains("corvus-pride-month-logo"))
-        .stdout(predicate::str::contains("\"workspace\": \"corvus-codex\""));
+        .stdout(predicate::str::contains("\"name\": \"display-app\""))
+        .stdout(predicate::str::contains("display-app-feature"))
+        .stdout(predicate::str::contains(
+            "\"workspace\": \"display-app-codex\"",
+        ));
 
     Command::cargo_bin("sheprd")
         .expect("binary")
         .envs(fixture.env())
-        .args(["connect", "corvus", "--no-attach"])
+        .args(["connect", "display-app", "--no-attach"])
         .assert()
         .success();
 
@@ -317,26 +319,28 @@ fn explicit_projects_keep_configured_name_for_custom_path() {
 #[test]
 fn configured_project_name_wins_over_local_same_named_directory() {
     let fixture = Fixture::new();
-    fixture.write_config_with_project("codex", "ghost", "ghost-worktree");
-    fixture.git_repo("ghost-worktree");
+    fixture.write_config_with_project("codex", "configured-app", "configured-app-worktree");
+    fixture.git_repo("configured-app-worktree");
     let current_repo = fixture.root.join("current-repo");
     std::fs::create_dir_all(current_repo.join(".git")).expect("current repo");
-    std::fs::create_dir_all(current_repo.join("ghost")).expect("shadow dir");
+    std::fs::create_dir_all(current_repo.join("configured-app")).expect("shadow dir");
     fixture.fake_tool("nvim");
     fixture.fake_tool("lazygit");
     fixture.fake_tool("codex");
-    fixture.fake_herdr(Some("ghost-codex"));
+    fixture.fake_herdr(Some("configured-app-codex"));
 
     Command::cargo_bin("sheprd")
         .expect("binary")
         .envs(fixture.env())
         .current_dir(current_repo)
-        .args(["connect", "ghost", "--json"])
+        .args(["connect", "configured-app", "--json"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("\"name\": \"ghost\""))
-        .stdout(predicate::str::contains("ghost-worktree"))
-        .stdout(predicate::str::contains("\"workspace\": \"ghost-codex\""));
+        .stdout(predicate::str::contains("\"name\": \"configured-app\""))
+        .stdout(predicate::str::contains("configured-app-worktree"))
+        .stdout(predicate::str::contains(
+            "\"workspace\": \"configured-app-codex\"",
+        ));
 
     let log = std::fs::read_to_string(fixture.log()).expect("log");
     assert!(log.contains("workspace focus w_existing"));
@@ -758,6 +762,46 @@ fn cleanup_confirm_refuses_dirty_worker_before_closing_workspace() {
     assert!(!log.contains("workspace close w_existing"));
     let worktrees = git_output(&repo, &["worktree", "list", "--porcelain"]);
     assert_eq!(worktrees.matches("worktree ").count(), 4);
+}
+
+#[test]
+fn cleanup_prompt_requires_the_active_project_name_before_mutating() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    for tool in ["pi", "codex", "claude", "opencode"] {
+        fixture.fake_tool(tool);
+    }
+    fixture.fake_herdr(None);
+    open_test_flok(&fixture, &repo);
+    fixture.fake_herdr(Some("sample-app-flok"));
+    let context = serde_json::json!({ "focused_pane_cwd": repo });
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_PLUGIN_CONTEXT_JSON", context.to_string())
+        .arg("cleanup-prompt")
+        .write_stdin("wrong-name\n")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Cleanup cancelled; nothing changed.",
+        ));
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(!log.contains("workspace close w_existing"));
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_PLUGIN_CONTEXT_JSON", context.to_string())
+        .arg("cleanup-prompt")
+        .write_stdin("sample-app\n")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Flok cleanup: confirmed"));
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("workspace close w_existing"));
 }
 
 fn open_test_flok(fixture: &Fixture, repo: &std::path::Path) {

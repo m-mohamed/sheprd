@@ -40,8 +40,23 @@ description = "Report whether the current Flok can be closed and its clean worke
 contexts = ["workspace", "tab", "pane"]
 command = ["./target/release/sheprd", "cleanup", "--json"]
 
+[[actions]]
+id = "cleanup-flok"
+title = "Clean up Flok…"
+description = "Open an interactive preview and require the project name before closing the Flok; dirty checkouts are preserved."
+contexts = ["workspace", "tab", "pane"]
+command = ["bash", "scripts/open-flok-cleanup.sh"]
+
 [[panes]]
 id = "project-picker"
 title = "Sheprd — Open Flok"
 placement = "popup"
 command = ["./target/release/sheprd", "pick"]
+
+[[panes]]
+id = "cleanup-confirm"
+title = "Sheprd — Clean up Flok"
+placement = "popup"
+width = "90%"
+height = "80%"
+command = ["./target/release/sheprd", "cleanup-prompt"]

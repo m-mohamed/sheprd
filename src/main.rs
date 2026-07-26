@@ -63,6 +63,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::Cleanup { project, confirm } => {
             cleanup(&config, project.as_deref(), confirm, cli.json)
         }
+        Command::CleanupPrompt => cleanup_prompt(&config),
         Command::Pick => pick(&config, cli.json),
         Command::Init { .. } => unreachable!("init returns before config load"),
         Command::List => list(&config, cli.json),
@@ -84,37 +85,7 @@ fn cleanup(config: &Config, selector: Option<&str>, confirm: bool, json: bool) -
     if json {
         print_json(&outcome)?;
     } else {
-        println!(
-            "Flok cleanup: {}",
-            if outcome.confirmed {
-                "confirmed"
-            } else {
-                "preview"
-            }
-        );
-        println!("project: {}", outcome.project);
-        println!(
-            "safe to clean: {}",
-            if outcome.can_cleanup { "yes" } else { "no" }
-        );
-        for worktree in &outcome.worktrees {
-            println!(
-                "  {}: {} · {} · branch preserved: {}",
-                worktree.kind,
-                if worktree.removed {
-                    "removed"
-                } else if worktree.clean {
-                    "clean"
-                } else {
-                    "dirty"
-                },
-                worktree.path,
-                worktree.branch
-            );
-        }
-        for warning in &outcome.warnings {
-            println!("warning: {warning}");
-        }
+        print_cleanup_human(&outcome);
         if !confirm && outcome.can_cleanup {
             println!("Run again with --confirm to close the Flok and remove clean checkouts.");
         }
@@ -124,6 +95,71 @@ fn cleanup(config: &Config, selector: Option<&str>, confirm: bool, json: bool) -
     } else {
         ExitCode::FAILURE
     })
+}
+
+fn cleanup_prompt(config: &Config) -> Result<ExitCode> {
+    use std::io::{self, Write};
+
+    let project = project::resolve_active(config)?;
+    let preview = herdr::cleanup_flok(&project, false)?;
+    print_cleanup_human(&preview);
+    if !preview.can_cleanup {
+        return Ok(ExitCode::FAILURE);
+    }
+    println!();
+    print!(
+        "Type the project name `{}` to close this Flok and remove its clean worker checkouts: ",
+        preview.project
+    );
+    io::stdout().flush()?;
+    let mut confirmation = String::new();
+    io::stdin().read_line(&mut confirmation)?;
+    if confirmation.trim() != preview.project {
+        println!("Cleanup cancelled; nothing changed.");
+        return Ok(ExitCode::SUCCESS);
+    }
+    println!();
+    let confirmed = herdr::cleanup_flok(&project, true)?;
+    print_cleanup_human(&confirmed);
+    Ok(if confirmed.can_cleanup {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    })
+}
+
+fn print_cleanup_human(outcome: &herdr::FlokCleanupOutcome) {
+    println!(
+        "Flok cleanup: {}",
+        if outcome.confirmed {
+            "confirmed"
+        } else {
+            "preview"
+        }
+    );
+    println!("project: {}", outcome.project);
+    println!(
+        "safe to clean: {}",
+        if outcome.can_cleanup { "yes" } else { "no" }
+    );
+    for worktree in &outcome.worktrees {
+        println!(
+            "  {}: {} · {} · branch preserved: {}",
+            worktree.kind,
+            if worktree.removed {
+                "removed"
+            } else if worktree.clean {
+                "clean"
+            } else {
+                "dirty"
+            },
+            worktree.path,
+            worktree.branch
+        );
+    }
+    for warning in &outcome.warnings {
+        println!("warning: {warning}");
+    }
 }
 
 fn flok(config: &Config, selector: Option<&str>, json: bool) -> Result<ExitCode> {

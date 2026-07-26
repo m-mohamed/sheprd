@@ -42,6 +42,10 @@ pub enum Command {
         confirm: bool,
     },
 
+    /// Interactively confirm cleanup inside a Herdr popup.
+    #[command(hide = true)]
+    CleanupPrompt,
+
     /// Pick a project interactively and open its Flok.
     #[command(hide = true)]
     Pick,

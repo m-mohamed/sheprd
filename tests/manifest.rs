@@ -61,7 +61,13 @@ fn plugin_manifest_is_a_transparent_install_and_action_contract() {
     }
     assert_eq!(
         ids,
-        BTreeSet::from(["choose-flok", "cleanup-preview", "doctor", "open-flok",])
+        BTreeSet::from([
+            "choose-flok",
+            "cleanup-flok",
+            "cleanup-preview",
+            "doctor",
+            "open-flok",
+        ])
     );
 
     let cleanup = actions
