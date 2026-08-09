@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.0 - 2026-08-09
+
 ### Added
 
 - Added `sheprd factory run`, a deterministic Pi-plan/Codex-build/Rust-check/Claude-intent-review/OpenCode-adversarial-review workflow with typed sentinel envelopes, two bounded correction turns, explicit path scope, append-only JSONL phase traces, final JSON receipts, and fail-closed acceptance.

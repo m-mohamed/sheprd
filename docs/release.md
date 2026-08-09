@@ -1,7 +1,7 @@
 # Release Process
 
 Sheprd follows SemVer with annotated `vX.Y.Z` tags. The current plugin release
-line is `v0.2.1`.
+line is `v0.3.0`.
 
 ## Prepare
 
