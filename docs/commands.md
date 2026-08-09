@@ -124,12 +124,53 @@ The runner never commits, merges, pushes, or deletes worker state. Failed and
 rejected runs return a non-zero status and preserve changes. Each run creates an
 append-only `trace.jsonl` plus an atomic `receipt.json` under
 `$SHEPRD_STATE_DIR/factory`, or `~/.local/state/sheprd/factory`. The receipt
-includes envelopes, all check attempts, actual paths, integrity verdicts,
-review verdicts, acceptance, failure reason, and both state paths. Factory state
+includes a version plus started/finished Unix-millisecond timestamps, monotonic
+elapsed milliseconds, implementation and check-attempt counts, envelopes,
+actual paths, integrity verdicts, explicit review and acceptance outcomes,
+failure stage, failure reason, cost availability, and both state paths. Factory state
 directories are owner-only; trace, receipt, temporary, and lock files are mode
 `0600` on Unix. Review patches are capped at 48 KiB and every agent prompt is
 capped at 60 KiB before Herdr execution. Workflow code uses the agents already
 configured in the Flok and contains no model IDs.
+
+## `factory stats`
+
+```bash
+sheprd factory stats
+sheprd factory stats my-app --json
+```
+
+This command resolves the project like `factory run` and reads its receipts
+without creating directories, locks, repairs, or other state. Human and JSON
+output aggregate total, accepted, and rejected runs; acceptance as
+`accepted / total`; corrections as `runs with more than one implementation
+turn / runs that reached implementation`; total check attempts; failure stages;
+and elapsed-runtime coverage and total.
+
+`total_runs` and all metric denominators include only completed, validated
+receipts. A stable private run directory without `receipt.json` is reported
+separately as `incomplete_runs`; it is never inferred accepted or rejected.
+
+Receipt schema 2 supplies all observability fields. Schema-1 receipts written
+by v0.3.1 remain valid: their acceptance and attempt data are counted, their
+rejected failure stage is grouped as `legacy_unknown`, and their runtime is not
+included in runtime coverage. Zero receipts produce zero denominators and
+`unavailable` coverage rather than a synthetic rate.
+
+Cost coverage is `unavailable`, `partial`, or `complete`. A cost enters totals
+only when a receipt declares typed authoritative data with a non-empty provider
+source, currency, integer minor-unit amount, and decimal scale. Sheprd does not
+infer token usage, convert currencies, or estimate dollar cost. Totals remain
+separate by currency and scale.
+
+Statistics require stable 0700 state/run directories and 0600 regular receipt
+and trace files under one owner. Malformed JSON, unsupported versions, missing
+artifacts, symlinks, unsafe permissions, inconsistent duplicated fields,
+active temporary/lock state, arithmetic overflow, or metadata changes during a
+read fail the entire command; no suspect receipt is silently omitted. A 0600
+regular `factory.lock` with a stable, valid PID is checked read-only: a live PID
+blocks statistics, a PID proven dead is treated as stale without deleting the
+lock, and malformed, symlinked, unsafe, changing, or unverifiable locks fail.
 
 ## `cleanup`
 

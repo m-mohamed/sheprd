@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+
+- Version factory receipts with explicit timing, attempt counts, acceptance,
+  failure stage, review, and authoritative-cost availability fields,
+  while retaining schema-1 v0.3.1 receipt compatibility.
+- Add read-only `sheprd factory stats [project]` human and JSON aggregation for
+  acceptance, corrections, checks, failures, runtime coverage, and
+  authoritative cost only, with strict private-state and stable-read checks.
+- Recognize a stable dead-PID factory lock without mutating it while continuing
+  to reject live, malformed, unsafe, racing, or unverifiable locks.
+- Count trusted receipt-less interrupted runs separately without weakening
+  validation for completed receipts or mutating recovery state.
+
 ## v0.3.1 - 2026-08-09
 
 ### Fixed

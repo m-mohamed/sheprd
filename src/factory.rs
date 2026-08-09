@@ -5,16 +5,19 @@ use crate::project::Project;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt};
 use std::os::unix::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-const FACTORY_SCHEMA_VERSION: u32 = 1;
+const FACTORY_ENVELOPE_SCHEMA_VERSION: u32 = 1;
+const FACTORY_RECEIPT_SCHEMA_VERSION: u32 = 2;
+const FACTORY_STATS_SCHEMA_VERSION: u32 = 1;
+const MAX_RECEIPT_BYTES: u64 = 2 * 1024 * 1024;
 const MARKER_START_PREFIX: &str = "<<<SHEPRD_FACTORY_JSON_START:";
 const MARKER_END_PREFIX: &str = "<<<SHEPRD_FACTORY_JSON_END:";
 const MARKER_LIKE_PREFIX: &str = "<<<SHEPRD_FACTORY";
@@ -90,7 +93,7 @@ pub struct ReviewEnvelope {
     pub findings: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CheckResult {
     pub command: String,
     pub success: bool,
@@ -102,13 +105,91 @@ pub struct CheckResult {
     pub stderr: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CheckAttempt {
     pub implementation_turn: usize,
     pub results: Vec<CheckResult>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AcceptanceOutcome {
+    Accepted,
+    Rejected,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FailureStage {
+    Preflight,
+    Plan,
+    Implementation,
+    Checks,
+    ClaudeReview,
+    OpencodeReview,
+    FinalValidation,
+}
+
+impl FailureStage {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Preflight => "preflight",
+            Self::Plan => "plan",
+            Self::Implementation => "implementation",
+            Self::Checks => "checks",
+            Self::ClaudeReview => "claude_review",
+            Self::OpencodeReview => "opencode_review",
+            Self::FinalValidation => "final_validation",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewOutcome {
+    NotReached,
+    Approved,
+    Rejected,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ReviewOutcomes {
+    pub claude: ReviewOutcome,
+    pub opencode: ReviewOutcome,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CostAvailability {
+    Unavailable,
+    Authoritative,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AuthoritativeCost {
+    pub source: String,
+    pub currency: String,
+    pub amount_minor_units: u64,
+    pub minor_unit_scale: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ReceiptCost {
+    pub availability: CostAvailability,
+    pub authoritative: Option<AuthoritativeCost>,
+}
+
+impl ReceiptCost {
+    fn unavailable() -> Self {
+        Self {
+            availability: CostAvailability::Unavailable,
+            authoritative: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct FactoryReceipt {
     pub schema_version: u32,
     pub run_id: String,
@@ -127,9 +208,81 @@ pub struct FactoryReceipt {
     pub base_unchanged: bool,
     pub worker_head_unchanged: bool,
     pub accepted: bool,
+    pub acceptance: AcceptanceOutcome,
+    pub failure_stage: Option<FailureStage>,
+    pub review_outcomes: ReviewOutcomes,
+    pub started_at_unix_ms: u64,
+    pub finished_at_unix_ms: u64,
+    pub elapsed_ms: u64,
+    pub implementation_turn_count: usize,
+    pub check_attempt_count: usize,
+    pub cost: ReceiptCost,
     pub failure: Option<String>,
     pub trace_path: String,
     pub receipt_path: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RateMetric {
+    pub numerator: u64,
+    pub denominator: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CoverageAvailability {
+    Unavailable,
+    Partial,
+    Complete,
+}
+
+impl CoverageAvailability {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Unavailable => "unavailable",
+            Self::Partial => "partial",
+            Self::Complete => "complete",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RuntimeStats {
+    pub availability: CoverageAvailability,
+    pub covered_runs: u64,
+    pub total_runs: u64,
+    pub total_elapsed_ms: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CostTotal {
+    pub currency: String,
+    pub amount_minor_units: u64,
+    pub minor_unit_scale: u32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CostStats {
+    pub availability: CoverageAvailability,
+    pub authoritative_runs: u64,
+    pub total_runs: u64,
+    pub totals: Vec<CostTotal>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct FactoryStats {
+    pub schema_version: u32,
+    pub project: String,
+    pub total_runs: u64,
+    pub incomplete_runs: u64,
+    pub accepted_runs: u64,
+    pub rejected_runs: u64,
+    pub acceptance: RateMetric,
+    pub corrections: RateMetric,
+    pub check_attempts: u64,
+    pub failure_stages: BTreeMap<String, u64>,
+    pub runtime: RuntimeStats,
+    pub cost: CostStats,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -180,6 +333,7 @@ struct FileMetadataSnapshot {
     kind: FileKind,
     len: u64,
     mode: u32,
+    uid: u32,
     device: u64,
     inode: u64,
     modified_seconds: i64,
@@ -215,6 +369,8 @@ pub fn run(
             "factory check timeout must be at least one second".into(),
         ));
     }
+    let started = Instant::now();
+    let started_at_unix_ms = unix_time_ms()?;
     let allowed = normalize_allow_paths(&request.allow_paths)?;
     let run_id = factory_run_id();
     let project_state = factory_state_root(project)?;
@@ -234,7 +390,7 @@ pub fn run(
         worker_head: None,
     };
     let mut receipt = FactoryReceipt {
-        schema_version: FACTORY_SCHEMA_VERSION,
+        schema_version: FACTORY_RECEIPT_SCHEMA_VERSION,
         run_id: run_id.clone(),
         project: project.name.clone(),
         task: request.task.clone(),
@@ -251,6 +407,18 @@ pub fn run(
         base_unchanged: true,
         worker_head_unchanged: true,
         accepted: false,
+        acceptance: AcceptanceOutcome::Rejected,
+        failure_stage: Some(FailureStage::Preflight),
+        review_outcomes: ReviewOutcomes {
+            claude: ReviewOutcome::NotReached,
+            opencode: ReviewOutcome::NotReached,
+        },
+        started_at_unix_ms,
+        finished_at_unix_ms: started_at_unix_ms,
+        elapsed_ms: 0,
+        implementation_turn_count: 0,
+        check_attempt_count: 0,
+        cost: ReceiptCost::unavailable(),
         failure: None,
         trace_path: trace_path.display().to_string(),
         receipt_path: receipt_path.display().to_string(),
@@ -272,6 +440,9 @@ pub fn run(
         trace.append("run", "failed", json!({ "error": error.to_string() }))?;
     }
 
+    if receipt.failure.is_none() {
+        receipt.failure_stage = Some(FailureStage::FinalValidation);
+    }
     receipt.base_unchanged = git_snapshot(&project.path)? == context.base_before;
     if let (Some(worker_path), Some(worker_head)) = (
         context.worker_path.as_deref(),
@@ -309,6 +480,17 @@ pub fn run(
             .as_ref()
             .is_some_and(|review| review.approved);
     if checks_pass && !reviews_approve && receipt.failure.is_none() {
+        receipt.failure_stage = Some(
+            if receipt
+                .claude_review
+                .as_ref()
+                .is_none_or(|review| !review.approved)
+            {
+                FailureStage::ClaudeReview
+            } else {
+                FailureStage::OpencodeReview
+            },
+        );
         receipt.failure = Some("Claude and OpenCode must both approve acceptance".into());
     }
     receipt.accepted = receipt.failure.is_none()
@@ -316,6 +498,22 @@ pub fn run(
         && receipt.worker_head_unchanged
         && checks_pass
         && reviews_approve;
+    receipt.acceptance = if receipt.accepted {
+        AcceptanceOutcome::Accepted
+    } else {
+        AcceptanceOutcome::Rejected
+    };
+    receipt.failure_stage = (!receipt.accepted).then_some(
+        receipt
+            .failure_stage
+            .unwrap_or(FailureStage::FinalValidation),
+    );
+    receipt.review_outcomes = review_outcomes(&receipt);
+    receipt.implementation_turn_count = receipt.implementations.len();
+    receipt.check_attempt_count = receipt.check_attempts.len();
+    receipt.finished_at_unix_ms = unix_time_ms()?.max(receipt.started_at_unix_ms);
+    receipt.elapsed_ms = u64::try_from(started.elapsed().as_millis())
+        .map_err(|_| SheprdError::Message("factory elapsed runtime overflow".into()))?;
 
     trace.append(
         "run",
@@ -334,6 +532,21 @@ pub fn run(
     )?;
     write_json_atomic(&receipt_path, &receipt)?;
     Ok(receipt)
+}
+
+fn review_outcomes(receipt: &FactoryReceipt) -> ReviewOutcomes {
+    fn outcome(review: Option<&ReviewEnvelope>) -> ReviewOutcome {
+        match review {
+            Some(review) if review.approved => ReviewOutcome::Approved,
+            Some(_) => ReviewOutcome::Rejected,
+            None => ReviewOutcome::NotReached,
+        }
+    }
+
+    ReviewOutcomes {
+        claude: outcome(receipt.claude_review.as_ref()),
+        opencode: outcome(receipt.opencode_review.as_ref()),
+    }
 }
 
 fn execute_factory(
@@ -379,6 +592,7 @@ fn execute_factory(
     context.worker_head = Some(worker_head.clone());
     verify_integrity(context)?;
 
+    receipt.failure_stage = Some(FailureStage::Plan);
     let plan_marker = EnvelopeMarker::fresh()?;
     let plan_prompt = plan_prompt(context.request, &plan_marker);
     let plan_result = run_agent_phase(pi, &plan_prompt, "plan", &plan_marker, trace);
@@ -390,6 +604,7 @@ fn execute_factory(
     receipt.plan = Some(plan.clone());
     verify_integrity(context)?;
 
+    receipt.failure_stage = Some(FailureStage::Implementation);
     let implementation_marker = EnvelopeMarker::fresh()?;
     let initial_prompt =
         implementation_prompt(context.request, &plan, 0, None, &implementation_marker)?;
@@ -422,6 +637,7 @@ fn execute_factory(
     receipt.implementations.push(implementation);
 
     for correction_turn in 0..=MAX_CORRECTION_TURNS {
+        receipt.failure_stage = Some(FailureStage::Checks);
         let results = run_checks(
             &worker_path,
             &worker_head,
@@ -460,6 +676,7 @@ fn execute_factory(
                 "checks still fail after two Codex correction turns".into(),
             ));
         }
+        receipt.failure_stage = Some(FailureStage::Implementation);
         let correction_marker = EnvelopeMarker::fresh()?;
         let correction_prompt = implementation_prompt(
             context.request,
@@ -489,6 +706,7 @@ fn execute_factory(
         receipt.implementations.push(correction);
     }
 
+    receipt.failure_stage = Some(FailureStage::FinalValidation);
     let review_source = source_snapshot(&worker_path, &worker_head, true)?;
     let actual_paths = review_source.paths.clone();
     if actual_paths.is_empty() {
@@ -514,6 +732,7 @@ fn execute_factory(
         .map(|attempt| &attempt.results)
         .ok_or_else(|| SheprdError::Message("factory checks did not run".into()))?;
 
+    receipt.failure_stage = Some(FailureStage::ClaudeReview);
     let claude_marker = EnvelopeMarker::fresh()?;
     let claude_prompt = review_prompt(
         "claude",
@@ -554,6 +773,7 @@ fn execute_factory(
     require_source_snapshot_unchanged(&worker_path, &worker_head, &review_source, "Claude review")?;
     verify_integrity(context)?;
 
+    receipt.failure_stage = Some(FailureStage::OpencodeReview);
     let opencode_marker = EnvelopeMarker::fresh()?;
     let opencode_prompt = review_prompt(
         "opencode",
@@ -592,6 +812,7 @@ fn execute_factory(
         serde_json::to_value(&opencode_review)?,
     )?;
     receipt.opencode_review = Some(opencode_review);
+    receipt.failure_stage = Some(FailureStage::FinalValidation);
     require_source_snapshot_unchanged(
         &worker_path,
         &worker_head,
@@ -833,7 +1054,7 @@ fn parse_envelope<T: DeserializeOwned>(
         SheprdError::Message(format!("agent envelope is not valid JSON: {error}"))
     })?;
     if value.get("schema_version").and_then(Value::as_u64)
-        != Some(u64::from(FACTORY_SCHEMA_VERSION))
+        != Some(u64::from(FACTORY_ENVELOPE_SCHEMA_VERSION))
     {
         return Err(SheprdError::Message(
             "agent envelope has an unsupported schema_version".into(),
@@ -1331,6 +1552,7 @@ fn file_metadata_snapshot(
         kind,
         len: metadata.len(),
         mode: metadata.mode(),
+        uid: metadata.uid(),
         device: metadata.dev(),
         inode: metadata.ino(),
         modified_seconds: metadata.mtime(),
@@ -1698,7 +1920,692 @@ fn review_patch(cwd: &Path, initial_head: &str, changed_paths: &[String]) -> Res
     Ok(String::from_utf8_lossy(&patch).into_owned())
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(dead_code)]
+struct LegacyFactoryReceipt {
+    schema_version: u32,
+    run_id: String,
+    project: String,
+    task: String,
+    allow_paths: Vec<String>,
+    check_commands: Vec<String>,
+    check_timeout_seconds: u64,
+    workspace_id: Option<String>,
+    plan: Option<PlanEnvelope>,
+    implementations: Vec<ImplementationEnvelope>,
+    check_attempts: Vec<CheckAttempt>,
+    claude_review: Option<ReviewEnvelope>,
+    opencode_review: Option<ReviewEnvelope>,
+    changed_paths: Vec<String>,
+    base_unchanged: bool,
+    worker_head_unchanged: bool,
+    accepted: bool,
+    failure: Option<String>,
+    trace_path: String,
+    receipt_path: String,
+}
+
+struct ObservedRun {
+    accepted: bool,
+    implementation_turn_count: usize,
+    check_attempt_count: usize,
+    failure_stage: Option<String>,
+    elapsed_ms: Option<u64>,
+    cost: Option<AuthoritativeCost>,
+}
+
+pub fn stats(project: &Project) -> Result<FactoryStats> {
+    let project_state = factory_project_state_path(project)?;
+    let (runs, incomplete_runs) = read_stable_receipts(&project_state, project)?;
+    aggregate_stats(project, runs, incomplete_runs)
+}
+
+fn aggregate_stats(
+    project: &Project,
+    runs: Vec<ObservedRun>,
+    incomplete_runs: u64,
+) -> Result<FactoryStats> {
+    let total_runs = u64::try_from(runs.len())
+        .map_err(|_| SheprdError::Message("factory run count overflow".into()))?;
+    let mut accepted_runs = 0_u64;
+    let mut correction_numerator = 0_u64;
+    let mut correction_denominator = 0_u64;
+    let mut check_attempts = 0_u64;
+    let mut failure_stages = BTreeMap::new();
+    let mut runtime_runs = 0_u64;
+    let mut total_elapsed_ms = 0_u64;
+    let mut authoritative_runs = 0_u64;
+    let mut cost_totals: BTreeMap<(String, u32), u64> = BTreeMap::new();
+
+    for run in runs {
+        if run.accepted {
+            accepted_runs = checked_increment(accepted_runs, "accepted run count")?;
+        } else if let Some(stage) = run.failure_stage {
+            checked_map_increment(&mut failure_stages, stage, "failure-stage count")?;
+        }
+        if run.implementation_turn_count > 0 {
+            correction_denominator =
+                checked_increment(correction_denominator, "correction denominator")?;
+            if run.implementation_turn_count > 1 {
+                correction_numerator =
+                    checked_increment(correction_numerator, "correction numerator")?;
+            }
+        }
+        check_attempts = check_attempts
+            .checked_add(
+                u64::try_from(run.check_attempt_count).map_err(|_| {
+                    SheprdError::Message("factory check-attempt count overflow".into())
+                })?,
+            )
+            .ok_or_else(|| SheprdError::Message("factory check-attempt total overflow".into()))?;
+        if let Some(elapsed_ms) = run.elapsed_ms {
+            runtime_runs = checked_increment(runtime_runs, "runtime coverage")?;
+            total_elapsed_ms = total_elapsed_ms
+                .checked_add(elapsed_ms)
+                .ok_or_else(|| SheprdError::Message("factory runtime total overflow".into()))?;
+        }
+        if let Some(cost) = run.cost {
+            authoritative_runs = checked_increment(authoritative_runs, "cost coverage")?;
+            let total = cost_totals
+                .entry((cost.currency, cost.minor_unit_scale))
+                .or_default();
+            *total = total
+                .checked_add(cost.amount_minor_units)
+                .ok_or_else(|| SheprdError::Message("factory cost total overflow".into()))?;
+        }
+    }
+
+    let rejected_runs = total_runs
+        .checked_sub(accepted_runs)
+        .ok_or_else(|| SheprdError::Message("factory acceptance counts are inconsistent".into()))?;
+    let totals = cost_totals
+        .into_iter()
+        .map(
+            |((currency, minor_unit_scale), amount_minor_units)| CostTotal {
+                currency,
+                amount_minor_units,
+                minor_unit_scale,
+            },
+        )
+        .collect();
+    Ok(FactoryStats {
+        schema_version: FACTORY_STATS_SCHEMA_VERSION,
+        project: project.name.clone(),
+        total_runs,
+        incomplete_runs,
+        accepted_runs,
+        rejected_runs,
+        acceptance: RateMetric {
+            numerator: accepted_runs,
+            denominator: total_runs,
+        },
+        corrections: RateMetric {
+            numerator: correction_numerator,
+            denominator: correction_denominator,
+        },
+        check_attempts,
+        failure_stages,
+        runtime: RuntimeStats {
+            availability: coverage(runtime_runs, total_runs),
+            covered_runs: runtime_runs,
+            total_runs,
+            total_elapsed_ms,
+        },
+        cost: CostStats {
+            availability: coverage(authoritative_runs, total_runs),
+            authoritative_runs,
+            total_runs,
+            totals,
+        },
+    })
+}
+
+fn coverage(covered: u64, total: u64) -> CoverageAvailability {
+    if total == 0 || covered == 0 {
+        CoverageAvailability::Unavailable
+    } else if covered == total {
+        CoverageAvailability::Complete
+    } else {
+        CoverageAvailability::Partial
+    }
+}
+
+fn checked_increment(value: u64, description: &str) -> Result<u64> {
+    value
+        .checked_add(1)
+        .ok_or_else(|| SheprdError::Message(format!("factory {description} overflow")))
+}
+
+fn checked_map_increment(
+    values: &mut BTreeMap<String, u64>,
+    key: String,
+    description: &str,
+) -> Result<()> {
+    let value = values.entry(key).or_default();
+    *value = checked_increment(*value, description)?;
+    Ok(())
+}
+
+fn read_stable_receipts(
+    project_state: &Path,
+    project: &Project,
+) -> Result<(Vec<ObservedRun>, u64)> {
+    let factory_root = project_state
+        .parent()
+        .ok_or_else(|| SheprdError::Message("invalid factory state path".into()))?;
+    let state_root = factory_root
+        .parent()
+        .ok_or_else(|| SheprdError::Message("invalid factory state root".into()))?;
+    let Some(state_before) = state_root_snapshot(state_root)? else {
+        return Ok((Vec::new(), 0));
+    };
+    let owner_uid = state_before.uid;
+    let Some(factory_before) = private_directory_snapshot(factory_root, Some(owner_uid))? else {
+        let state_after = state_root_snapshot(state_root)?.ok_or_else(|| {
+            SheprdError::Message("factory state changed while statistics were being read".into())
+        })?;
+        require_same_metadata(&state_before, &state_after, "Sheprd state directory")?;
+        return Ok((Vec::new(), 0));
+    };
+    let Some(project_before) = private_directory_snapshot(project_state, Some(owner_uid))? else {
+        let factory_after = private_directory_snapshot(factory_root, None)?.ok_or_else(|| {
+            SheprdError::Message("factory state changed while statistics were being read".into())
+        })?;
+        require_same_metadata(&factory_before, &factory_after, "factory state directory")?;
+        let state_after = state_root_snapshot(state_root)?.ok_or_else(|| {
+            SheprdError::Message("Sheprd state changed while statistics were being read".into())
+        })?;
+        require_same_metadata(&state_before, &state_after, "Sheprd state directory")?;
+        return Ok((Vec::new(), 0));
+    };
+
+    let entries = stable_directory_entries(project_state, &project_before)?;
+    let mut runs = Vec::new();
+    let mut incomplete_runs = 0_u64;
+    for (name, path) in entries {
+        if name == "factory.lock" {
+            require_stale_factory_lock(&path, owner_uid)?;
+            continue;
+        }
+        if name.starts_with(".receipt.") {
+            return Err(SheprdError::Message(
+                "factory state is incomplete; statistics require a stable snapshot".into(),
+            ));
+        }
+        let run_before = private_directory_snapshot(&path, Some(owner_uid))?.ok_or_else(|| {
+            SheprdError::Message("factory run disappeared while statistics were being read".into())
+        })?;
+        let run_entries = stable_directory_entries(&path, &run_before)?;
+        let mut receipt_path = None;
+        let mut trace_path = None;
+        for (entry_name, entry_path) in run_entries {
+            match entry_name.as_str() {
+                "receipt.json" => receipt_path = Some(entry_path),
+                "trace.jsonl" => trace_path = Some(entry_path),
+                _ => {
+                    return Err(SheprdError::Message(format!(
+                        "unexpected factory run artifact: {entry_name}"
+                    )))
+                }
+            }
+        }
+        let receipt_path = match receipt_path {
+            None => {
+                let trace_before = trace_path
+                    .as_ref()
+                    .map(|path| private_file_snapshot(path, owner_uid, "factory trace"))
+                    .transpose()?;
+                let run_after =
+                    private_directory_snapshot(&path, Some(owner_uid))?.ok_or_else(|| {
+                        SheprdError::Message(
+                            "factory run disappeared while statistics were being read".into(),
+                        )
+                    })?;
+                require_same_metadata(&run_before, &run_after, "factory run directory")?;
+                if let (Some(trace_path), Some(trace_before)) = (trace_path, trace_before) {
+                    let trace_after =
+                        private_file_snapshot(&trace_path, owner_uid, "factory trace")?;
+                    require_same_metadata(&trace_before, &trace_after, "factory trace")?;
+                }
+                incomplete_runs = checked_increment(incomplete_runs, "incomplete run count")?;
+                continue;
+            }
+            Some(receipt_path) => receipt_path,
+        };
+        let trace_path = trace_path
+            .ok_or_else(|| SheprdError::Message(format!("factory run {name} has no trace")))?;
+        let trace_before = private_file_snapshot(&trace_path, owner_uid, "factory trace")?;
+        let bytes = read_private_file(
+            &receipt_path,
+            owner_uid,
+            MAX_RECEIPT_BYTES,
+            "factory receipt",
+        )?;
+        let trace_after = private_file_snapshot(&trace_path, owner_uid, "factory trace")?;
+        require_same_metadata(&trace_before, &trace_after, "factory trace")?;
+        let run_after = private_directory_snapshot(&path, Some(owner_uid))?.ok_or_else(|| {
+            SheprdError::Message("factory run disappeared while statistics were being read".into())
+        })?;
+        require_same_metadata(&run_before, &run_after, "factory run directory")?;
+        runs.push(parse_observed_receipt(
+            &bytes,
+            project,
+            &name,
+            &receipt_path,
+            &trace_path,
+        )?);
+    }
+    let project_after =
+        private_directory_snapshot(project_state, Some(owner_uid))?.ok_or_else(|| {
+            SheprdError::Message(
+                "factory state disappeared while statistics were being read".into(),
+            )
+        })?;
+    require_same_metadata(&project_before, &project_after, "factory project directory")?;
+    let factory_after = private_directory_snapshot(factory_root, None)?.ok_or_else(|| {
+        SheprdError::Message("factory state disappeared while statistics were being read".into())
+    })?;
+    require_same_metadata(&factory_before, &factory_after, "factory state directory")?;
+    let state_after = state_root_snapshot(state_root)?.ok_or_else(|| {
+        SheprdError::Message("Sheprd state disappeared while statistics were being read".into())
+    })?;
+    require_same_metadata(&state_before, &state_after, "Sheprd state directory")?;
+    Ok((runs, incomplete_runs))
+}
+
+fn stable_directory_entries(
+    path: &Path,
+    before: &FileMetadataSnapshot,
+) -> Result<Vec<(String, PathBuf)>> {
+    let mut entries = Vec::new();
+    for entry in std::fs::read_dir(path)? {
+        let entry = entry?;
+        let name = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| SheprdError::Message("factory state contains a non-UTF-8 entry".into()))?;
+        entries.push((name, entry.path()));
+    }
+    entries.sort_by(|left, right| left.0.cmp(&right.0));
+    let after =
+        file_metadata_snapshot(&std::fs::symlink_metadata(path)?, "factory state directory")?;
+    require_same_metadata(before, &after, "factory state directory")?;
+    Ok(entries)
+}
+
+fn private_directory_snapshot(
+    path: &Path,
+    expected_uid: Option<u32>,
+) -> Result<Option<FileMetadataSnapshot>> {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    let snapshot = file_metadata_snapshot(&metadata, "factory state directory")?;
+    if snapshot.kind != FileKind::Directory || snapshot.mode & 0o777 != 0o700 {
+        return Err(SheprdError::Message(format!(
+            "factory state directory must be an owner-only 0700 directory: {}",
+            path.display()
+        )));
+    }
+    if expected_uid.is_some_and(|uid| snapshot.uid != uid) {
+        return Err(SheprdError::Message(format!(
+            "factory state ownership is inconsistent: {}",
+            path.display()
+        )));
+    }
+    Ok(Some(snapshot))
+}
+
+fn state_root_snapshot(path: &Path) -> Result<Option<FileMetadataSnapshot>> {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    let snapshot = file_metadata_snapshot(&metadata, "Sheprd state directory")?;
+    if snapshot.kind != FileKind::Directory {
+        return Err(SheprdError::Message(format!(
+            "Sheprd state root must be a real directory: {}",
+            path.display()
+        )));
+    }
+    Ok(Some(snapshot))
+}
+
+fn private_file_snapshot(
+    path: &Path,
+    owner_uid: u32,
+    description: &str,
+) -> Result<FileMetadataSnapshot> {
+    let snapshot = file_metadata_snapshot(&std::fs::symlink_metadata(path)?, description)?;
+    if snapshot.kind != FileKind::Regular
+        || snapshot.mode & 0o777 != 0o600
+        || snapshot.uid != owner_uid
+    {
+        return Err(SheprdError::Message(format!(
+            "{description} must be an owner-only 0600 regular file: {}",
+            path.display()
+        )));
+    }
+    Ok(snapshot)
+}
+
+fn read_private_file(
+    path: &Path,
+    owner_uid: u32,
+    limit: u64,
+    description: &str,
+) -> Result<Vec<u8>> {
+    let expected = private_file_snapshot(path, owner_uid, description)?;
+    if expected.len > limit {
+        return Err(SheprdError::Message(format!(
+            "{description} exceeds the {limit} byte limit"
+        )));
+    }
+    let mut file = File::open(path)?;
+    let opened = file_metadata_snapshot(&file.metadata()?, &format!("{description} handle"))?;
+    require_same_metadata(&expected, &opened, description)?;
+    let mut bytes = Vec::new();
+    (&mut file)
+        .take(limit.saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if u64::try_from(bytes.len()).ok() != Some(expected.len) {
+        return Err(SheprdError::Message(format!(
+            "{description} changed while statistics were being read"
+        )));
+    }
+    let handle_after = file_metadata_snapshot(&file.metadata()?, &format!("{description} handle"))?;
+    require_same_metadata(&opened, &handle_after, description)?;
+    let path_after = private_file_snapshot(path, owner_uid, description)?;
+    require_same_metadata(&handle_after, &path_after, description)?;
+    Ok(bytes)
+}
+
+fn require_stale_factory_lock(path: &Path, owner_uid: u32) -> Result<()> {
+    require_stale_factory_lock_with(path, owner_uid, factory_pid_is_live)
+}
+
+fn require_stale_factory_lock_with<F>(path: &Path, owner_uid: u32, probe: F) -> Result<()>
+where
+    F: FnOnce(u32) -> Result<bool>,
+{
+    const MAX_LOCK_BYTES: u64 = 32;
+    let before = private_file_snapshot(path, owner_uid, "factory lock")?;
+    let bytes = read_private_file(path, owner_uid, MAX_LOCK_BYTES, "factory lock")?;
+    let contents = std::str::from_utf8(&bytes)
+        .map_err(|_| SheprdError::Message("factory lock PID is not valid UTF-8".into()))?;
+    let pid = contents
+        .trim()
+        .parse::<u32>()
+        .ok()
+        .filter(|pid| *pid > 0)
+        .ok_or_else(|| SheprdError::Message("factory lock PID is malformed".into()))?;
+    if contents != format!("{pid}\n") {
+        return Err(SheprdError::Message("factory lock PID is malformed".into()));
+    }
+    if probe(pid)? {
+        return Err(SheprdError::Message(format!(
+            "factory statistics are unavailable while live PID {pid} owns the factory lock"
+        )));
+    }
+    let after = private_file_snapshot(path, owner_uid, "factory lock")?;
+    require_same_metadata(&before, &after, "factory lock")?;
+    Ok(())
+}
+
+fn factory_pid_is_live(pid: u32) -> Result<bool> {
+    if pid == std::process::id() {
+        return Ok(true);
+    }
+    if pid > i32::MAX as u32 {
+        return Err(SheprdError::Message(format!(
+            "could not verify factory lock PID {pid}: PID exceeds the supported range"
+        )));
+    }
+    let output = Command::new("/bin/ps")
+        .args(["-p", &pid.to_string(), "-o", "pid="])
+        .output()
+        .map_err(|error| {
+            SheprdError::Message(format!("could not verify factory lock PID {pid}: {error}"))
+        })?;
+    if output.status.success() {
+        let observed = String::from_utf8(output.stdout)
+            .ok()
+            .and_then(|value| value.trim().parse::<u32>().ok());
+        return match observed {
+            Some(observed) if observed == pid => Ok(true),
+            _ => Err(SheprdError::Message(format!(
+                "could not verify factory lock PID {pid}: ps returned inconsistent output"
+            ))),
+        };
+    }
+    if output.status.code() == Some(1) && output.stdout.is_empty() && output.stderr.is_empty() {
+        return Ok(false);
+    }
+    Err(SheprdError::Message(format!(
+        "could not verify factory lock PID {pid}: ps exited with {}",
+        output
+            .status
+            .code()
+            .map_or_else(|| "no status".to_string(), |code| code.to_string())
+    )))
+}
+
+fn parse_observed_receipt(
+    bytes: &[u8],
+    project: &Project,
+    run_id: &str,
+    receipt_path: &Path,
+    trace_path: &Path,
+) -> Result<ObservedRun> {
+    let value: Value = serde_json::from_slice(bytes)?;
+    let version = value
+        .get("schema_version")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| {
+            SheprdError::Message("factory receipt has no valid schema_version".into())
+        })?;
+    match version {
+        1 => {
+            let receipt: LegacyFactoryReceipt = serde_json::from_value(value)?;
+            validate_legacy_receipt(&receipt, project, run_id, receipt_path, trace_path)?;
+            Ok(ObservedRun {
+                accepted: receipt.accepted,
+                implementation_turn_count: receipt.implementations.len(),
+                check_attempt_count: receipt.check_attempts.len(),
+                failure_stage: (!receipt.accepted).then(|| "legacy_unknown".to_string()),
+                elapsed_ms: None,
+                cost: None,
+            })
+        }
+        2 => {
+            let receipt: FactoryReceipt = serde_json::from_value(value)?;
+            validate_receipt(&receipt, project, run_id, receipt_path, trace_path)?;
+            Ok(ObservedRun {
+                accepted: receipt.accepted,
+                implementation_turn_count: receipt.implementation_turn_count,
+                check_attempt_count: receipt.check_attempt_count,
+                failure_stage: receipt.failure_stage.map(|stage| stage.label().to_string()),
+                elapsed_ms: Some(receipt.elapsed_ms),
+                cost: receipt.cost.authoritative,
+            })
+        }
+        _ => Err(SheprdError::Message(format!(
+            "unsupported factory receipt schema_version: {version}"
+        ))),
+    }
+}
+
+fn validate_legacy_receipt(
+    receipt: &LegacyFactoryReceipt,
+    project: &Project,
+    run_id: &str,
+    receipt_path: &Path,
+    trace_path: &Path,
+) -> Result<()> {
+    if receipt.schema_version != 1 {
+        return Err(SheprdError::Message(
+            "legacy factory receipt schema is inconsistent".into(),
+        ));
+    }
+    validate_receipt_identity(
+        &receipt.run_id,
+        &receipt.project,
+        &receipt.receipt_path,
+        &receipt.trace_path,
+        project,
+        run_id,
+        receipt_path,
+        trace_path,
+    )?;
+    validate_run_semantics(
+        receipt.accepted,
+        receipt.failure.as_deref(),
+        receipt.base_unchanged,
+        receipt.worker_head_unchanged,
+        &receipt.implementations,
+        &receipt.check_attempts,
+        receipt.claude_review.as_ref(),
+        receipt.opencode_review.as_ref(),
+    )
+}
+
+fn validate_receipt(
+    receipt: &FactoryReceipt,
+    project: &Project,
+    run_id: &str,
+    receipt_path: &Path,
+    trace_path: &Path,
+) -> Result<()> {
+    if receipt.schema_version != FACTORY_RECEIPT_SCHEMA_VERSION
+        || receipt.implementation_turn_count != receipt.implementations.len()
+        || receipt.check_attempt_count != receipt.check_attempts.len()
+        || receipt.finished_at_unix_ms < receipt.started_at_unix_ms
+        || receipt.accepted != (receipt.acceptance == AcceptanceOutcome::Accepted)
+        || receipt.review_outcomes != review_outcomes(receipt)
+        || receipt.accepted == receipt.failure_stage.is_some()
+    {
+        return Err(SheprdError::Message(
+            "factory receipt observability fields are inconsistent".into(),
+        ));
+    }
+    match (&receipt.cost.availability, &receipt.cost.authoritative) {
+        (CostAvailability::Unavailable, None) => {}
+        (CostAvailability::Authoritative, Some(cost))
+            if !cost.source.trim().is_empty()
+                && !cost.currency.trim().is_empty()
+                && cost.minor_unit_scale <= 18 => {}
+        _ => {
+            return Err(SheprdError::Message(
+                "factory receipt cost fields are inconsistent".into(),
+            ))
+        }
+    }
+    validate_receipt_identity(
+        &receipt.run_id,
+        &receipt.project,
+        &receipt.receipt_path,
+        &receipt.trace_path,
+        project,
+        run_id,
+        receipt_path,
+        trace_path,
+    )?;
+    validate_run_semantics(
+        receipt.accepted,
+        receipt.failure.as_deref(),
+        receipt.base_unchanged,
+        receipt.worker_head_unchanged,
+        &receipt.implementations,
+        &receipt.check_attempts,
+        receipt.claude_review.as_ref(),
+        receipt.opencode_review.as_ref(),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_receipt_identity(
+    receipt_run_id: &str,
+    receipt_project: &str,
+    recorded_receipt_path: &str,
+    recorded_trace_path: &str,
+    project: &Project,
+    run_id: &str,
+    receipt_path: &Path,
+    trace_path: &Path,
+) -> Result<()> {
+    if receipt_run_id != run_id
+        || receipt_project != project.name
+        || Path::new(recorded_receipt_path) != receipt_path
+        || Path::new(recorded_trace_path) != trace_path
+    {
+        return Err(SheprdError::Message(
+            "factory receipt identity is inconsistent with its state path".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_run_semantics(
+    accepted: bool,
+    failure: Option<&str>,
+    base_unchanged: bool,
+    worker_head_unchanged: bool,
+    implementations: &[ImplementationEnvelope],
+    check_attempts: &[CheckAttempt],
+    claude_review: Option<&ReviewEnvelope>,
+    opencode_review: Option<&ReviewEnvelope>,
+) -> Result<()> {
+    if !accepted && failure.is_none() {
+        return Err(SheprdError::Message(
+            "rejected factory receipt has no failure".into(),
+        ));
+    }
+    for attempt in check_attempts {
+        if attempt.implementation_turn == 0
+            || attempt.implementation_turn > implementations.len()
+            || attempt.results.is_empty()
+        {
+            return Err(SheprdError::Message(
+                "factory receipt check attempts are inconsistent".into(),
+            ));
+        }
+    }
+    if accepted {
+        let checks_pass = check_attempts
+            .last()
+            .is_some_and(|attempt| attempt.results.iter().all(|result| result.success));
+        let reviews_approve = claude_review.is_some_and(|review| review.approved)
+            && opencode_review.is_some_and(|review| review.approved);
+        if failure.is_some()
+            || !base_unchanged
+            || !worker_head_unchanged
+            || !checks_pass
+            || !reviews_approve
+        {
+            return Err(SheprdError::Message(
+                "accepted factory receipt has inconsistent evidence".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn factory_state_root(project: &Project) -> Result<PathBuf> {
+    let project_root = factory_project_state_path(project)?;
+    let factory_root = project_root
+        .parent()
+        .ok_or_else(|| SheprdError::Message("invalid factory state path".into()))?;
+    create_private_dir(factory_root)?;
+    create_private_dir(&project_root)?;
+    Ok(project_root)
+}
+
+fn factory_project_state_path(project: &Project) -> Result<PathBuf> {
     let state_root = if let Some(path) = std::env::var_os("SHEPRD_STATE_DIR") {
         PathBuf::from(path)
     } else {
@@ -1706,10 +2613,7 @@ fn factory_state_root(project: &Project) -> Result<PathBuf> {
         PathBuf::from(home).join(".local/state/sheprd")
     };
     let factory_root = state_root.join("factory");
-    create_private_dir(&factory_root)?;
-    let project_root = factory_root.join(short_hash(&project.path));
-    create_private_dir(&project_root)?;
-    Ok(project_root)
+    Ok(factory_root.join(short_hash(&project.path)))
 }
 
 fn create_private_dir(path: &Path) -> Result<()> {
@@ -1722,11 +2626,19 @@ fn create_private_dir(path: &Path) -> Result<()> {
 }
 
 fn factory_run_id() -> String {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
     format!("{nanos}-{}", std::process::id())
+}
+
+fn unix_time_ms() -> Result<u64> {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| SheprdError::Message("system clock is before the Unix epoch".into()))?
+        .as_millis();
+    u64::try_from(millis).map_err(|_| SheprdError::Message("system timestamp overflow".into()))
 }
 
 fn short_hash(path: &Path) -> String {
@@ -1766,7 +2678,7 @@ impl TraceWriter {
         serde_json::to_writer(
             &mut self.file,
             &TraceEvent {
-                schema_version: FACTORY_SCHEMA_VERSION,
+                schema_version: FACTORY_ENVELOPE_SCHEMA_VERSION,
                 sequence: self.sequence,
                 phase,
                 status,
@@ -1836,13 +2748,10 @@ fn lock_owner_is_alive(path: &Path) -> bool {
     let Ok(pid) = contents.trim().parse::<u32>() else {
         return true;
     };
-    if pid == std::process::id() {
+    if pid == 0 {
         return true;
     }
-    Command::new("ps")
-        .args(["-p", &pid.to_string(), "-o", "pid="])
-        .output()
-        .is_ok_and(|output| output.status.success() && !output.stdout.is_empty())
+    factory_pid_is_live(pid).unwrap_or(true)
 }
 
 fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<()> {
@@ -2022,7 +2931,7 @@ mod tests {
             check_timeout_seconds: 300,
         };
         let plan = PlanEnvelope {
-            schema_version: FACTORY_SCHEMA_VERSION,
+            schema_version: FACTORY_ENVELOPE_SCHEMA_VERSION,
             kind: "plan".into(),
             nonce: "plan-nonce".into(),
             summary: "p".repeat(MAX_AGENT_PROMPT_BYTES + 1),
@@ -2290,5 +3199,29 @@ mod tests {
             0o600
         );
         drop(lock);
+    }
+
+    #[test]
+    fn stale_factory_lock_probe_detects_a_metadata_race_deterministically() {
+        let temp = assert_fs::TempDir::new().expect("temp");
+        let lock_path = temp.path().join("factory.lock");
+        let mut lock = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&lock_path)
+            .expect("lock");
+        writeln!(lock, "99999").expect("PID");
+        lock.sync_all().expect("sync");
+        let owner_uid = std::fs::metadata(temp.path()).expect("metadata").uid();
+        let error = require_stale_factory_lock_with(&lock_path, owner_uid, |_| {
+            OpenOptions::new()
+                .append(true)
+                .open(&lock_path)?
+                .write_all(b"x")?;
+            Ok(false)
+        })
+        .expect_err("racing lock");
+        assert!(error.to_string().contains("factory lock changed"));
     }
 }

@@ -77,6 +77,9 @@ fn run(cli: Cli) -> Result<ExitCode> {
                 check_timeout_seconds,
                 cli.json,
             ),
+            FactoryCommand::Stats { project } => {
+                factory_stats(&config, project.as_deref(), cli.json)
+            }
         },
         Command::Cleanup { project, confirm } => {
             cleanup(&config, project.as_deref(), confirm, cli.json)
@@ -91,6 +94,65 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::Recipes => recipes(&config, cli.json),
         Command::Doctor => doctor(&config, cli.json),
         Command::ShowConfig => show_config(&config, cli.json),
+    }
+}
+
+fn factory_stats(config: &Config, selector: Option<&str>, json: bool) -> Result<ExitCode> {
+    let project = match selector {
+        Some(selector) => project::resolve(config, selector)?,
+        None => project::resolve_active(config)?,
+    };
+    let stats = factory::stats(&project)?;
+    if json {
+        print_json(&stats)?;
+    } else {
+        println!("factory stats: {}", stats.project);
+        println!(
+            "runs: {} total, {} accepted, {} rejected",
+            stats.total_runs, stats.accepted_runs, stats.rejected_runs
+        );
+        println!("incomplete runs: {}", stats.incomplete_runs);
+        println!(
+            "acceptance: {}/{}",
+            stats.acceptance.numerator, stats.acceptance.denominator
+        );
+        println!(
+            "corrections: {}/{} implementation-reached runs",
+            stats.corrections.numerator, stats.corrections.denominator
+        );
+        println!("check attempts: {}", stats.check_attempts);
+        print_grouped_counts("failure stages", &stats.failure_stages);
+        println!(
+            "runtime: {} ({}/{} runs), {} ms total",
+            stats.runtime.availability.label(),
+            stats.runtime.covered_runs,
+            stats.runtime.total_runs,
+            stats.runtime.total_elapsed_ms
+        );
+        println!(
+            "cost: {} ({}/{} authoritative runs)",
+            stats.cost.availability.label(),
+            stats.cost.authoritative_runs,
+            stats.cost.total_runs
+        );
+        for total in &stats.cost.totals {
+            println!(
+                "  {}: {} minor units at scale {}",
+                total.currency, total.amount_minor_units, total.minor_unit_scale
+            );
+        }
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn print_grouped_counts(label: &str, counts: &std::collections::BTreeMap<String, u64>) {
+    if counts.is_empty() {
+        println!("{label}: none recorded");
+    } else {
+        println!("{label}:");
+        for (name, count) in counts {
+            println!("  {name}: {count}");
+        }
     }
 }
 

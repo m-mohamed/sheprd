@@ -139,11 +139,23 @@ created Flok:
 ```bash
 target/release/sheprd factory run my-app --task "add retry metrics" \
   --allow-path src/metrics.rs --check "cargo test metrics" --json
+target/release/sheprd factory stats my-app --json
 ```
 
 Rust owns the sequence: typed Pi plan, Codex implementation, caller-declared checks, at most two Codex corrections, Claude intent review, then OpenCode adversarial review. Each agent turn uses a fresh nonce-bound JSON envelope and an observed post-prompt completion. OpenCode responses are read from its structured session export so terminal wrapping cannot corrupt the review envelope. Reviewers receive the explicit Codex checkout path while their own worktrees remain clean. Acceptance requires passing checks and approval from both reviewers.
 
 The factory refuses a stale or dirty Codex checkout, commits, base-checkout drift, agent-authored ignored payloads, and changes outside `--allow-path`. Checks run through `/bin/sh -c` with a documented environment allowlist and a 300-second default timeout, configurable with `--check-timeout-seconds`; timeouts kill the check process group, and any check that mutates reviewed source state fails the run. Check-owned ignored build outputs are allowed but excluded from the reviewed patch, while ignored-state drift is still included in the immutable review-window snapshot. It never merges or pushes. Every attempt writes private append-only `trace.jsonl` and final `receipt.json` files below the stable Sheprd state root; rejected runs return a non-zero exit status and preserve all worker changes for inspection.
+
+`factory stats` is a read-only receipt view. It reports acceptance, corrected-run
+and implementation-reached counts, incomplete runs, check attempts, failure
+stages, and runtime coverage. Schema-1 v0.3.1 receipts remain readable, with
+unrecorded timing and failure-stage details shown as unavailable or
+`legacy_unknown`. Cost is unavailable unless a receipt carries typed,
+authoritative provider data; Sheprd never estimates tokens or money. Statistics
+fail closed instead of skipping malformed, incomplete, symlinked,
+permission-unsafe, inconsistent, or concurrently changing state. A stable lock
+whose PID is provably dead is treated as stale without being removed; live,
+malformed, unsafe, changing, or unverifiable locks block the read.
 
 ## Configuration
 

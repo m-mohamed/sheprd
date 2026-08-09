@@ -973,6 +973,14 @@ fn factory_run_accepts_only_after_checks_and_both_reviews_approve() {
         .assert()
         .success()
         .stdout(predicate::str::contains("\"accepted\": true"))
+        .stdout(predicate::str::contains("\"schema_version\": 2"))
+        .stdout(predicate::str::contains("\"acceptance\": \"accepted\""))
+        .stdout(predicate::str::contains("\"failure_stage\": null"))
+        .stdout(predicate::str::contains("\"implementation_turn_count\": 1"))
+        .stdout(predicate::str::contains("\"check_attempt_count\": 1"))
+        .stdout(predicate::str::contains(
+            "\"availability\": \"unavailable\"",
+        ))
         .stdout(predicate::str::contains("\"base_unchanged\": true"))
         .stdout(predicate::str::contains("\"worker_head_unchanged\": true"))
         .stdout(predicate::str::contains("\"reviewer\": \"claude\""))
@@ -1003,6 +1011,264 @@ fn factory_run_accepts_only_after_checks_and_both_reviews_approve() {
     assert!(trace.contains("\"status\":\"accepted\""));
     let receipt = std::fs::read_to_string(run_dir.join("receipt.json")).expect("receipt");
     assert!(receipt.contains("\"accepted\": true"));
+
+    let stats = factory_stats_json(&fixture, &repo);
+    assert_eq!(stats["total_runs"], 1);
+    assert_eq!(stats["accepted_runs"], 1);
+    assert_eq!(stats["acceptance"]["numerator"], 1);
+    assert_eq!(stats["acceptance"]["denominator"], 1);
+    assert_eq!(stats["check_attempts"], 1);
+    assert_eq!(stats["runtime"]["availability"], "complete");
+    assert_eq!(stats["runtime"]["covered_runs"], 1);
+    assert_eq!(stats["cost"]["availability"], "unavailable");
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["factory", "stats", &repo.display().to_string()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("factory stats: sample-app"))
+        .stdout(predicate::str::contains("acceptance: 1/1"))
+        .stdout(predicate::str::contains("cost: unavailable"));
+}
+
+#[test]
+fn factory_stats_aggregates_modern_legacy_and_authoritative_cost_receipts() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+    run_accepted_factory(&fixture, &repo);
+
+    let project_dir = factory_project_dir(&fixture);
+    let original_run = only_run_dir(&project_dir);
+    let original: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(original_run.join("receipt.json")).expect("receipt"))
+            .expect("receipt json");
+
+    let mut legacy = original.clone();
+    let legacy_run = project_dir.join("legacy-rejected");
+    create_private_test_dir(&legacy_run);
+    legacy["schema_version"] = 1.into();
+    legacy["run_id"] = "legacy-rejected".into();
+    legacy["accepted"] = false.into();
+    legacy["failure"] = "legacy failure".into();
+    legacy["receipt_path"] = legacy_run.join("receipt.json").display().to_string().into();
+    legacy["trace_path"] = legacy_run.join("trace.jsonl").display().to_string().into();
+    for field in [
+        "acceptance",
+        "failure_stage",
+        "review_outcomes",
+        "started_at_unix_ms",
+        "finished_at_unix_ms",
+        "elapsed_ms",
+        "implementation_turn_count",
+        "check_attempt_count",
+        "cost",
+    ] {
+        legacy
+            .as_object_mut()
+            .expect("receipt object")
+            .remove(field);
+    }
+    write_private_test_file(&legacy_run.join("trace.jsonl"), b"legacy\n");
+    write_private_test_json(&legacy_run.join("receipt.json"), &legacy);
+
+    let mut authoritative = original;
+    let authoritative_run = project_dir.join("authoritative-cost");
+    create_private_test_dir(&authoritative_run);
+    authoritative["run_id"] = "authoritative-cost".into();
+    authoritative["receipt_path"] = authoritative_run
+        .join("receipt.json")
+        .display()
+        .to_string()
+        .into();
+    authoritative["trace_path"] = authoritative_run
+        .join("trace.jsonl")
+        .display()
+        .to_string()
+        .into();
+    authoritative["accepted"] = false.into();
+    authoritative["acceptance"] = "rejected".into();
+    authoritative["failure"] = "authoritative rejected fixture".into();
+    authoritative["failure_stage"] = "final_validation".into();
+    authoritative["cost"] = serde_json::json!({
+        "availability": "authoritative",
+        "authoritative": {
+            "source": "provider receipt fixture",
+            "currency": "USD",
+            "amount_minor_units": 125,
+            "minor_unit_scale": 2
+        }
+    });
+    write_private_test_file(&authoritative_run.join("trace.jsonl"), b"authoritative\n");
+    write_private_test_json(&authoritative_run.join("receipt.json"), &authoritative);
+
+    let stats = factory_stats_json(&fixture, &repo);
+    assert_eq!(stats["total_runs"], 3);
+    assert_eq!(stats["accepted_runs"], 1);
+    assert_eq!(stats["rejected_runs"], 2);
+    assert_eq!(
+        stats["acceptance"],
+        serde_json::json!({"numerator": 1, "denominator": 3})
+    );
+    assert_eq!(stats["failure_stages"]["legacy_unknown"], 1);
+    assert_eq!(stats["failure_stages"]["final_validation"], 1);
+    assert_eq!(stats["runtime"]["availability"], "partial");
+    assert_eq!(stats["runtime"]["covered_runs"], 2);
+    assert_eq!(stats["cost"]["availability"], "partial");
+    assert_eq!(stats["cost"]["authoritative_runs"], 1);
+    assert_eq!(stats["cost"]["totals"][0]["currency"], "USD");
+    assert_eq!(stats["cost"]["totals"][0]["amount_minor_units"], 125);
+}
+
+#[test]
+fn factory_run_and_stats_do_not_advertise_rollback_without_a_real_operation() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+    let receipt = run_accepted_factory_json(&fixture, &repo);
+    assert!(receipt.get("rollback_outcome").is_none());
+
+    let stats = factory_stats_json(&fixture, &repo);
+    assert!(stats.get("rollback_outcomes").is_none());
+}
+
+#[test]
+fn factory_stats_is_read_only_for_a_project_without_receipts() {
+    let fixture = Fixture::new();
+    fixture.write_config("codex");
+    let repo = fixture.real_git_repo("sample-app");
+    let factory_root = fixture.home.path().join("plugin-state/factory");
+
+    let stats = factory_stats_json(&fixture, &repo);
+    assert_eq!(stats["total_runs"], 0);
+    assert_eq!(
+        stats["acceptance"],
+        serde_json::json!({"numerator": 0, "denominator": 0})
+    );
+    assert_eq!(stats["runtime"]["availability"], "unavailable");
+    assert_eq!(stats["cost"]["availability"], "unavailable");
+    assert!(
+        !factory_root.exists(),
+        "stats must not create factory state"
+    );
+}
+
+#[test]
+fn factory_stats_counts_a_receiptless_interrupted_run_without_mutating_it() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+    run_accepted_factory(&fixture, &repo);
+    let interrupted = factory_project_dir(&fixture).join("interrupted-run");
+    create_private_test_dir(&interrupted);
+    let trace = interrupted.join("trace.jsonl");
+    write_private_test_file(&trace, b"partial trace\n");
+    let before = std::fs::metadata(&interrupted).expect("interrupted metadata");
+
+    let stats = factory_stats_json(&fixture, &repo);
+    assert_eq!(stats["total_runs"], 1);
+    assert_eq!(stats["incomplete_runs"], 1);
+    assert_eq!(stats["acceptance"]["denominator"], 1);
+    assert_eq!(
+        std::fs::read(&trace).expect("partial trace"),
+        b"partial trace\n"
+    );
+    assert_eq!(
+        before.modified().expect("before modified"),
+        std::fs::metadata(&interrupted)
+            .expect("interrupted metadata after stats")
+            .modified()
+            .expect("after modified")
+    );
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["factory", "stats", &repo.display().to_string()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("incomplete runs: 1"));
+}
+
+#[test]
+fn factory_stats_fails_closed_on_unsafe_malformed_inconsistent_and_racing_state() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+    run_accepted_factory(&fixture, &repo);
+    let project_dir = factory_project_dir(&fixture);
+    let run_dir = only_run_dir(&project_dir);
+    let receipt_path = run_dir.join("receipt.json");
+    let original = std::fs::read(&receipt_path).expect("receipt");
+
+    set_test_mode(&receipt_path, 0o644);
+    assert_factory_stats_fails(&fixture, &repo, "owner-only 0600 regular file");
+    set_test_mode(&receipt_path, 0o600);
+
+    write_private_test_file(&receipt_path, b"{");
+    assert_factory_stats_fails(&fixture, &repo, "json error");
+
+    let mut inconsistent: serde_json::Value =
+        serde_json::from_slice(&original).expect("receipt json");
+    inconsistent["check_attempt_count"] = 99.into();
+    write_private_test_json(&receipt_path, &inconsistent);
+    assert_factory_stats_fails(&fixture, &repo, "observability fields are inconsistent");
+
+    write_private_test_file(&receipt_path, &original);
+    let racing = project_dir.join(".receipt.racing.tmp");
+    write_private_test_file(&racing, b"partial");
+    assert_factory_stats_fails(&fixture, &repo, "state is incomplete");
+    std::fs::remove_file(racing).expect("remove racing fixture");
+
+    std::fs::remove_file(&receipt_path).expect("remove receipt fixture");
+    std::os::unix::fs::symlink("trace.jsonl", &receipt_path).expect("symlink receipt fixture");
+    assert_factory_stats_fails(&fixture, &repo, "owner-only 0600 regular file");
+}
+
+#[test]
+fn factory_stats_reads_stale_locks_without_mutation_and_rejects_untrusted_locks() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+    run_accepted_factory(&fixture, &repo);
+    let project_dir = factory_project_dir(&fixture);
+    let lock = project_dir.join("factory.lock");
+    let mut exited = std::process::Command::new("true")
+        .spawn()
+        .expect("spawn dead PID fixture");
+    let dead_pid = exited.id();
+    assert!(exited.wait().expect("wait dead PID fixture").success());
+    let stale_contents = format!("{dead_pid}\n");
+    write_private_test_file(&lock, stale_contents.as_bytes());
+
+    let stats = factory_stats_json(&fixture, &repo);
+    assert_eq!(stats["total_runs"], 1);
+    assert_eq!(
+        std::fs::read_to_string(&lock).expect("stale lock"),
+        stale_contents
+    );
+
+    write_private_test_file(&lock, format!("{}\n", std::process::id()).as_bytes());
+    assert_factory_stats_fails(&fixture, &repo, "while live PID");
+
+    write_private_test_file(&lock, b"not-a-pid\n");
+    assert_factory_stats_fails(&fixture, &repo, "PID is malformed");
+
+    write_private_test_file(&lock, stale_contents.as_bytes());
+    set_test_mode(&lock, 0o644);
+    assert_factory_stats_fails(&fixture, &repo, "owner-only 0600 regular file");
+    set_test_mode(&lock, 0o600);
+
+    std::fs::remove_file(&lock).expect("remove lock fixture");
+    std::os::unix::fs::symlink(only_run_dir(&project_dir).join("trace.jsonl"), &lock)
+        .expect("symlink lock fixture");
+    assert_factory_stats_fails(&fixture, &repo, "owner-only 0600 regular file");
+    std::fs::remove_file(&lock).expect("remove lock symlink fixture");
+
+    write_private_test_file(&lock, format!("{}\n", u32::MAX).as_bytes());
+    assert_factory_stats_fails(&fixture, &repo, "could not verify factory lock PID");
 }
 
 #[test]
@@ -1039,6 +1305,10 @@ fn factory_run_allows_one_bounded_codex_correction() {
     let log = std::fs::read_to_string(fixture.log()).expect("log");
     assert!(log.contains("Correction turn 1 of 2"));
     assert!(!log.contains("Correction turn 2 of 2"));
+    let stats = factory_stats_json(&fixture, &repo);
+    assert_eq!(stats["corrections"]["numerator"], 1);
+    assert_eq!(stats["corrections"]["denominator"], 1);
+    assert_eq!(stats["check_attempts"], 2);
 }
 
 #[test]
@@ -1151,6 +1421,10 @@ fn factory_run_fails_closed_when_either_review_rejects() {
         .stdout(predicate::str::contains(
             "Claude and OpenCode must both approve acceptance",
         ));
+
+    let stats = factory_stats_json(&fixture, &repo);
+    assert_eq!(stats["rejected_runs"], 1);
+    assert_eq!(stats["failure_stages"]["opencode_review"], 1);
 }
 
 #[test]
@@ -1543,6 +1817,98 @@ fn factory_fixture() -> Fixture {
         fixture.fake_tool(tool);
     }
     fixture
+}
+
+fn run_accepted_factory(fixture: &Fixture, repo: &std::path::Path) {
+    let _ = run_accepted_factory_json(fixture, repo);
+}
+
+fn run_accepted_factory_json(fixture: &Fixture, repo: &std::path::Path) -> serde_json::Value {
+    let output = Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args([
+            "factory",
+            "run",
+            &repo.display().to_string(),
+            "--task",
+            "create stats fixture",
+            "--allow-path",
+            "factory.txt",
+            "--check",
+            "true",
+            "--json",
+        ])
+        .output()
+        .expect("factory run");
+    assert!(
+        output.status.success(),
+        "factory run failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("factory receipt json")
+}
+
+fn factory_stats_json(fixture: &Fixture, repo: &std::path::Path) -> serde_json::Value {
+    let output = Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["factory", "stats", &repo.display().to_string(), "--json"])
+        .output()
+        .expect("factory stats");
+    assert!(
+        output.status.success(),
+        "factory stats failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("factory stats json")
+}
+
+fn assert_factory_stats_fails(fixture: &Fixture, repo: &std::path::Path, message: &str) {
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args(["factory", "stats", &repo.display().to_string()])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(message));
+}
+
+fn factory_project_dir(fixture: &Fixture) -> std::path::PathBuf {
+    std::fs::read_dir(fixture.home.path().join("plugin-state/factory"))
+        .expect("factory state")
+        .next()
+        .expect("project state")
+        .expect("project entry")
+        .path()
+}
+
+fn only_run_dir(project_dir: &std::path::Path) -> std::path::PathBuf {
+    std::fs::read_dir(project_dir)
+        .expect("factory runs")
+        .find_map(|entry| {
+            let path = entry.ok()?.path();
+            path.is_dir().then_some(path)
+        })
+        .expect("factory run")
+}
+
+fn create_private_test_dir(path: &std::path::Path) {
+    std::fs::create_dir(path).expect("private test dir");
+    set_test_mode(path, 0o700);
+}
+
+fn write_private_test_json(path: &std::path::Path, value: &serde_json::Value) {
+    write_private_test_file(path, &serde_json::to_vec_pretty(value).expect("json"));
+}
+
+fn write_private_test_file(path: &std::path::Path, contents: &[u8]) {
+    std::fs::write(path, contents).expect("private test file");
+    set_test_mode(path, 0o600);
+}
+
+fn set_test_mode(path: &std::path::Path, mode: u32) {
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).expect("chmod fixture");
 }
 
 fn track_factory_ignore(repo: &std::path::Path) {

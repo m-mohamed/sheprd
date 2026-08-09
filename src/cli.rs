@@ -118,4 +118,10 @@ pub enum FactoryCommand {
         #[arg(long = "check-timeout-seconds", default_value_t = 300)]
         check_timeout_seconds: u64,
     },
+
+    /// Aggregate private factory receipts without changing state.
+    Stats {
+        /// Project name or git checkout path. Defaults to the active Herdr project.
+        project: Option<String>,
+    },
 }
