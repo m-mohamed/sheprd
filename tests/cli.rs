@@ -16,8 +16,13 @@ fn help_describes_product_boundary() {
 
 #[test]
 fn recipes_emit_agent_dev() {
+    let fixture = Fixture::new();
+    let config_path = fixture.home.path().join("config.toml");
+
     Command::cargo_bin("sheprd")
         .expect("binary")
+        .env("HOME", fixture.home.path())
+        .env("SHEPRD_CONFIG", &config_path)
         .args(["recipes", "--json"])
         .assert()
         .success()
