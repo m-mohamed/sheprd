@@ -30,10 +30,11 @@ Pi · conductor       │ Codex · GPT-5.6 Sol
 Claude · Opus 5      │ OpenCode · DeepSeek V4 Flash
 ```
 
-Pi coordinates through Herdr's supported `agent prompt`, `agent wait`, and
-`agent read` commands. Each worker starts on its own branch in an isolated Git
-worktree. All four panes remain ordinary Herdr panes, so Herdr still owns focus,
-zoom, persistence, detach/reattach, remotes, agent state, and the socket API.
+Pi coordinates through Herdr's supported observed-turn `agent prompt --wait`
+and `agent read` commands. Each worker starts on its own branch in an isolated
+Git worktree. All four panes remain ordinary Herdr panes, so Herdr still owns
+focus, zoom, persistence, detach/reattach, remotes, agent state, and the socket
+API.
 
 ## Why this exists
 
@@ -80,7 +81,7 @@ provenance mismatch is a hard failure. See
 Pin a revision when you want a reproducible source checkout:
 
 ```bash
-herdr plugin install m-mohamed/sheprd --ref v0.3.0
+herdr plugin install m-mohamed/sheprd --ref v0.3.1
 ```
 
 ## Open a Flok
@@ -100,6 +101,11 @@ herdr plugin action invoke m-mohamed.sheprd.choose-flok
 Sheprd refuses to create a new Flok from a dirty base checkout. If a matching
 workspace already exists, Sheprd focuses it and reports its health; it never
 silently repairs or reshapes live panes.
+
+Flok is for repositories you trust. Codex starts with danger-full-access and no
+approval prompts, Claude starts in bypass-permissions mode with Chrome enabled,
+and OpenCode uses its allow-all policy. Git worktrees isolate project changes;
+they are not security sandboxes or boundaries around the rest of the host.
 
 Recommended project-picker keybinding:
 
@@ -135,9 +141,9 @@ target/release/sheprd factory run my-app --task "add retry metrics" \
   --allow-path src/metrics.rs --check "cargo test metrics" --json
 ```
 
-Rust owns the sequence: typed Pi plan, Codex implementation, caller-declared checks, at most two Codex corrections, Claude intent review, then OpenCode adversarial review. Each agent turn uses a fresh nonce-bound JSON envelope. Acceptance requires passing checks and approval from both reviewers.
+Rust owns the sequence: typed Pi plan, Codex implementation, caller-declared checks, at most two Codex corrections, Claude intent review, then OpenCode adversarial review. Each agent turn uses a fresh nonce-bound JSON envelope and an observed post-prompt completion. OpenCode responses are read from its structured session export so terminal wrapping cannot corrupt the review envelope. Reviewers receive the explicit Codex checkout path while their own worktrees remain clean. Acceptance requires passing checks and approval from both reviewers.
 
-The factory refuses a stale or dirty Codex checkout, commits, base-checkout drift, agent-authored ignored payloads, and changes outside `--allow-path`. Checks run through `/bin/sh -c` with a documented environment allowlist and a 300-second default timeout, configurable with `--check-timeout-seconds`; timeouts kill the check process group, and any check that mutates reviewed source state fails the run. Check-owned ignored build outputs are allowed but excluded from the reviewed patch. It never merges or pushes. Every attempt writes private append-only `trace.jsonl` and final `receipt.json` files below the stable Sheprd state root; rejected runs return a non-zero exit status and preserve all worker changes for inspection.
+The factory refuses a stale or dirty Codex checkout, commits, base-checkout drift, agent-authored ignored payloads, and changes outside `--allow-path`. Checks run through `/bin/sh -c` with a documented environment allowlist and a 300-second default timeout, configurable with `--check-timeout-seconds`; timeouts kill the check process group, and any check that mutates reviewed source state fails the run. Check-owned ignored build outputs are allowed but excluded from the reviewed patch, while ignored-state drift is still included in the immutable review-window snapshot. It never merges or pushes. Every attempt writes private append-only `trace.jsonl` and final `receipt.json` files below the stable Sheprd state root; rejected runs return a non-zero exit status and preserve all worker changes for inspection.
 
 ## Configuration
 

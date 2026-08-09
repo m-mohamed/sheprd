@@ -157,16 +157,12 @@ pub fn workspace_labels() -> Result<BTreeSet<String>> {
 }
 
 pub fn prompt_agent(name: &str, prompt: &str) -> Result<()> {
-    run_herdr(["agent", "prompt", name, prompt])
-}
-
-pub fn wait_for_agent(name: &str) -> Result<()> {
     run_herdr([
         "agent",
-        "wait",
+        "prompt",
         name,
-        "--until",
-        "idle",
+        prompt,
+        "--wait",
         "--timeout",
         "120000",
     ])
@@ -175,13 +171,93 @@ pub fn wait_for_agent(name: &str) -> Result<()> {
 pub fn read_agent(name: &str) -> Result<String> {
     let output = Command::new(herdr_bin())
         .args([
-            "agent", "read", name, "--source", "recent", "--lines", "240", "--format", "text",
+            "agent",
+            "read",
+            name,
+            "--source",
+            "recent-unwrapped",
+            "--lines",
+            "480",
+            "--format",
+            "text",
         ])
         .output()?;
     if !output.status.success() {
         return Err(SheprdError::Message(command_error(output.stderr)));
     }
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+pub fn read_agent_response(name: &str, kind: &str) -> Result<String> {
+    if kind == "opencode" {
+        if let Some(response) = read_opencode_session_response(name)? {
+            return Ok(response);
+        }
+    }
+    read_agent(name)
+}
+
+fn read_opencode_session_response(name: &str) -> Result<Option<String>> {
+    let agent = Command::new(herdr_bin())
+        .args(["agent", "get", name])
+        .output()?;
+    if !agent.status.success() {
+        return Ok(None);
+    }
+    let Ok(agent): std::result::Result<serde_json::Value, _> =
+        serde_json::from_slice(&agent.stdout)
+    else {
+        return Ok(None);
+    };
+    let Some(session_id) = agent
+        .pointer("/result/agent/agent_session/value")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return Ok(None);
+    };
+
+    let export = Command::new("opencode")
+        .args(["export", session_id])
+        .output()?;
+    if !export.status.success() {
+        return Err(SheprdError::Message(format!(
+            "could not export OpenCode session {session_id}: {}",
+            command_error(export.stderr)
+        )));
+    }
+    let export: serde_json::Value = serde_json::from_slice(&export.stdout)?;
+    let provider = export
+        .pointer("/info/model/providerID")
+        .and_then(serde_json::Value::as_str);
+    let model = export
+        .pointer("/info/model/id")
+        .and_then(serde_json::Value::as_str);
+    if provider != Some("opencode-go") || model != Some("deepseek-v4-flash") {
+        return Err(SheprdError::Message(format!(
+            "OpenCode session {session_id} is not pinned to opencode-go/deepseek-v4-flash"
+        )));
+    }
+    let Some(messages) = export.get("messages").and_then(serde_json::Value::as_array) else {
+        return Ok(None);
+    };
+    let Some(message) = messages.iter().rev().find(|message| {
+        message
+            .pointer("/info/role")
+            .and_then(serde_json::Value::as_str)
+            == Some("assistant")
+    }) else {
+        return Ok(None);
+    };
+    let response = message
+        .get("parts")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|part| part.get("type").and_then(serde_json::Value::as_str) == Some("text"))
+        .filter_map(|part| part.get("text").and_then(serde_json::Value::as_str))
+        .collect::<Vec<_>>()
+        .join("\n");
+    Ok((!response.is_empty()).then_some(response))
 }
 
 pub fn connect(
@@ -342,7 +418,7 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
                 "--config".into(),
                 format!("model_reasoning_effort={}", config.effort),
                 "--sandbox".into(),
-                "workspace-write".into(),
+                "danger-full-access".into(),
                 "--add-dir".into(),
                 project.path.join(".git").to_string_lossy().into_owned(),
                 "--ask-for-approval".into(),
@@ -359,11 +435,13 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
                 "--effort".into(),
                 config.effort.clone(),
                 "--permission-mode".into(),
-                "auto".into(),
+                "bypassPermissions".into(),
+                "--chrome".into(),
                 "--disallowedTools".into(),
                 "Agent,Task".into(),
             ],
         )?;
+        ensure_claude_worktree_trusted(&claude_name)?;
         start_agent(
             &opencode_pane.pane_id,
             &opencode_name,
@@ -727,6 +805,35 @@ fn live_flok_health(workspace_id: &str, expected: &[FlokAgent]) -> (bool, Vec<St
         }
     }
     (warnings.is_empty(), warnings)
+}
+
+fn ensure_claude_worktree_trusted(name: &str) -> Result<()> {
+    let mut trust_approved = false;
+    let mut bypass_warning_approved = false;
+    for _ in 0..120 {
+        let output = read_agent(name)?;
+        let trust_prompt = output.contains("Quick safety check:")
+            && output.contains("Yes, I trust this")
+            && output.contains("Enter to confirm");
+        let bypass_warning = output.contains("WARNING: Claude Code")
+            && output.contains("Yes, I accept")
+            && output.contains("Enter to confirm");
+        if bypass_warning && !bypass_warning_approved {
+            run_herdr(["agent", "send-keys", name, "down"])?;
+            thread::sleep(Duration::from_millis(100));
+            run_herdr(["agent", "send-keys", name, "enter"])?;
+            bypass_warning_approved = true;
+        } else if trust_prompt && !trust_approved {
+            run_herdr(["agent", "send-keys", name, "enter"])?;
+            trust_approved = true;
+        } else if output.contains("Claude Code") && !trust_prompt && !bypass_warning {
+            return Ok(());
+        }
+        thread::sleep(Duration::from_millis(250));
+    }
+    Err(SheprdError::Message(format!(
+        "Claude did not clear its workspace trust gate for {name}"
+    )))
 }
 
 fn validate_flok_config(config: &FlokConfig) -> Result<()> {

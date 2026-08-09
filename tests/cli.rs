@@ -479,9 +479,10 @@ fn flok_creates_exactly_four_agents_with_pinned_models_and_worker_worktrees() {
     assert!(log.contains("--agent build --model opencode-go/deepseek-v4-flash --mini"));
     assert!(log.contains("--model openai-codex/gpt-5.6-sol --thinking high"));
     assert!(log.contains("--model gpt-5.6-sol --config model_reasoning_effort=high"));
-    assert!(log.contains("--sandbox workspace-write --add-dir"));
+    assert!(log.contains("--sandbox danger-full-access --add-dir"));
     assert!(log.contains("sample-app/.git"));
     assert!(log.contains("--model claude-opus-5 --effort high"));
+    assert!(log.contains("--permission-mode bypassPermissions --chrome"));
     let pi_start = log
         .lines()
         .find(|line| line.starts_with("agent start") && line.contains("--kind pi"))
@@ -1180,6 +1181,37 @@ fn factory_run_tolerates_prompt_echo_without_parseable_prompt_markers() {
 }
 
 #[test]
+fn factory_run_polls_unwrapped_output_until_the_envelope_is_complete() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_FACTORY_INCOMPLETE_READ_ONCE", "pi")
+        .args([
+            "factory",
+            "run",
+            &repo.display().to_string(),
+            "--task",
+            "wait for the complete plan envelope",
+            "--allow-path",
+            "factory.txt",
+            "--check",
+            "true",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"accepted\": true"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log.contains("agent read"));
+    assert!(!log.contains("agent wait"));
+}
+
+#[test]
 fn factory_run_rejects_duplicate_and_wrong_nonce_envelopes() {
     for (env_name, env_value, expected) in [
         (
@@ -1757,12 +1789,26 @@ case "$1 $2" in
 	    printf '{{"id":"x","result":{{"type":"ok"}}}}'
 	    ;;
 	  "agent read")
+	    if [ "$5" != "recent-unwrapped" ]; then
+	      printf 'factory reads must use recent-unwrapped output\n' >&2
+	      exit 64
+	    fi
+	    if [ ! -e "$HOME/herdr-nonce-$3" ]; then
+	      printf 'Claude Code ready\n'
+	      exit 0
+	    fi
 	    nonce=$(cat "$HOME/herdr-nonce-$3")
 	    envelope_nonce="$nonce"
 	    if [ -n "${{HERDR_FACTORY_WRONG_NONCE:-}}" ] && printf '%s' "$3" | grep -F -- "-${{HERDR_FACTORY_WRONG_NONCE}}-" >/dev/null; then envelope_nonce="wrong"; fi
 	    if [ -n "${{HERDR_FACTORY_PROMPT_ECHO:-}}" ] && printf '%s' "$3" | grep -F -- "-${{HERDR_FACTORY_PROMPT_ECHO}}-" >/dev/null; then cat "$HOME/herdr-prompt-$3"; printf '\n'; fi
 	    start="<<<SHEPRD_FACTORY_JSON_START:$nonce>>>"
 	    end="<<<SHEPRD_FACTORY_JSON_END:$nonce>>>"
+	    incomplete_file="$HOME/herdr-incomplete-read-$3"
+	    if [ "${{HERDR_FACTORY_INCOMPLETE_READ_ONCE:-}}" = "pi" ] && printf '%s' "$3" | grep -F -- '-pi-' >/dev/null && [ ! -e "$incomplete_file" ]; then
+	      printf '1\n' > "$incomplete_file"
+	      printf '%s\n' "$start"
+	      exit 0
+	    fi
 	    case "$3" in
 	      *-pi-*)
 	        plan_path="${{HERDR_FACTORY_PLAN_PATH:-factory.txt}}"

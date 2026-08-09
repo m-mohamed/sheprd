@@ -28,6 +28,8 @@ const MAX_IGNORED_ENTRIES: usize = 100_000;
 const MAX_IGNORED_ENUM_BYTES: usize = 16 * 1024 * 1024;
 const MAX_IGNORED_TOTAL_FILE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
 const CHECK_POLL_INTERVAL: Duration = Duration::from_millis(25);
+const AGENT_RESPONSE_POLL_INTERVAL: Duration = Duration::from_millis(100);
+const AGENT_RESPONSE_TIMEOUT: Duration = Duration::from_secs(120);
 const CHECK_ENV_ALLOWLIST: &[&str] = &[
     "CARGO_HOME",
     "HOME",
@@ -156,6 +158,7 @@ struct EnvelopeMarker {
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct SourceSnapshot {
     git_admin: GitAdminSnapshot,
+    ignored: Option<IgnoredStateSnapshot>,
     paths: Vec<String>,
     digest: String,
 }
@@ -378,7 +381,7 @@ fn execute_factory(
 
     let plan_marker = EnvelopeMarker::fresh()?;
     let plan_prompt = plan_prompt(context.request, &plan_marker);
-    let plan_result = run_agent_phase(pi, &plan_prompt, "plan", trace);
+    let plan_result = run_agent_phase(pi, &plan_prompt, "plan", &plan_marker, trace);
     verify_integrity(context)?;
     let plan_text = plan_result?;
     let plan: PlanEnvelope = parse_envelope(&plan_text, "plan", &plan_marker)?;
@@ -391,7 +394,13 @@ fn execute_factory(
     let initial_prompt =
         implementation_prompt(context.request, &plan, 0, None, &implementation_marker)?;
     let implementation_ignored = ignored_state_snapshot(&worker_path)?;
-    let implementation_result = run_agent_phase(codex, &initial_prompt, "implementation", trace);
+    let implementation_result = run_agent_phase(
+        codex,
+        &initial_prompt,
+        "implementation",
+        &implementation_marker,
+        trace,
+    );
     require_ignored_state_unchanged(
         &worker_path,
         &implementation_ignored,
@@ -463,6 +472,7 @@ fn execute_factory(
             codex,
             &correction_prompt,
             "implementation_correction",
+            &correction_marker,
             trace,
         );
         require_ignored_state_unchanged(&worker_path, &post_check_ignored, "Codex correction")?;
@@ -479,7 +489,7 @@ fn execute_factory(
         receipt.implementations.push(correction);
     }
 
-    let review_source = source_snapshot(&worker_path, &worker_head)?;
+    let review_source = source_snapshot(&worker_path, &worker_head, true)?;
     let actual_paths = review_source.paths.clone();
     if actual_paths.is_empty() {
         return Err(SheprdError::Message(
@@ -508,6 +518,7 @@ fn execute_factory(
     let claude_prompt = review_prompt(
         "claude",
         "intent review: verify the implementation matches the typed plan and task",
+        &worker_path,
         context.request,
         &plan,
         final_checks,
@@ -515,7 +526,13 @@ fn execute_factory(
         &patch,
         &claude_marker,
     )?;
-    let claude_result = run_agent_phase(claude, &claude_prompt, "claude_review", trace);
+    let claude_result = run_agent_phase(
+        claude,
+        &claude_prompt,
+        "claude_review",
+        &claude_marker,
+        trace,
+    );
     if git_snapshot(Path::new(&claude.cwd))? != claude_before {
         return Err(SheprdError::Message(
             "Claude review modified its checkout".into(),
@@ -541,6 +558,7 @@ fn execute_factory(
     let opencode_prompt = review_prompt(
         "opencode",
         "adversarial review: search for correctness, safety, scope, and test gaps",
+        &worker_path,
         context.request,
         &plan,
         final_checks,
@@ -548,7 +566,13 @@ fn execute_factory(
         &patch,
         &opencode_marker,
     )?;
-    let opencode_result = run_agent_phase(opencode, &opencode_prompt, "opencode_review", trace);
+    let opencode_result = run_agent_phase(
+        opencode,
+        &opencode_prompt,
+        "opencode_review",
+        &opencode_marker,
+        trace,
+    );
     if git_snapshot(Path::new(&opencode.cwd))? != opencode_before {
         return Err(SheprdError::Message(
             "OpenCode review modified its checkout".into(),
@@ -591,6 +615,7 @@ fn run_agent_phase(
     agent: &FlokAgent,
     prompt: &str,
     phase: &str,
+    marker: &EnvelopeMarker,
     trace: &mut TraceWriter,
 ) -> Result<String> {
     require_agent_prompt_size(prompt)?;
@@ -600,14 +625,38 @@ fn run_agent_phase(
         json!({ "agent": agent.name, "kind": agent.kind }),
     )?;
     herdr::prompt_agent(&agent.name, prompt)?;
-    herdr::wait_for_agent(&agent.name)?;
-    let text = herdr::read_agent(&agent.name)?;
+    let deadline = Instant::now() + AGENT_RESPONSE_TIMEOUT;
+    let text = loop {
+        let text = normalize_agent_output(&herdr::read_agent_response(&agent.name, &agent.kind)?);
+        if (text.contains(&marker.start) && text.contains(&marker.end))
+            || (text.contains(MARKER_START_PREFIX) && text.contains(MARKER_END_PREFIX))
+        {
+            break text;
+        }
+        if Instant::now() >= deadline {
+            return Err(SheprdError::Message(format!(
+                "timed out waiting for a complete {phase} factory envelope from {}",
+                agent.name
+            )));
+        }
+        std::thread::sleep(AGENT_RESPONSE_POLL_INTERVAL);
+    };
     trace.append(
         phase,
         "responded",
         json!({ "agent": agent.name, "bytes": text.len() }),
     )?;
     Ok(text)
+}
+
+fn normalize_agent_output(text: &str) -> String {
+    // Agent TUIs can hard-wrap terminal rows even when Herdr requests an
+    // unwrapped snapshot. Factory envelopes are minified, so joining rows and
+    // removing the TUI response indent reconstructs the exact
+    // marker and JSON tokens. Human-facing summary whitespace is non-semantic.
+    text.lines()
+        .map(|line| line.trim_start_matches(' '))
+        .collect()
 }
 
 fn require_agent_prompt_size(prompt: &str) -> Result<()> {
@@ -640,11 +689,9 @@ impl EnvelopeMarker {
     }
 
     fn instructions(&self) -> String {
-        // Keep parseable markers out of the prompt so a prompt echo cannot
-        // satisfy the response contract. The agent constructs them itself.
         format!(
-            "Envelope nonce: {}\nConstruct the start marker by concatenating these JSON strings: [\"<<<SHEPRD_\",\"FACTORY_JSON_START:\",\"{}\",\">>>\"]. Construct the end marker by concatenating: [\"<<<SHEPRD_\",\"FACTORY_JSON_END:\",\"{}\",\">>>\"]. Emit exactly one start marker, one JSON object, and one end marker, with no other marker-like text.",
-            self.nonce, self.nonce, self.nonce
+            "Envelope nonce: {}\nReturn no prose. Final response must be:\n{}\n<one minified valid JSON object>\n{}\nCopy both markers exactly. JSON strings must not contain unescaped quotes.",
+            self.nonce, self.start, self.end
         )
     }
 }
@@ -690,6 +737,7 @@ fn implementation_prompt(
 fn review_prompt(
     reviewer: &str,
     purpose: &str,
+    worker_path: &Path,
     request: &FactoryRequest,
     plan: &PlanEnvelope,
     checks: &[CheckResult],
@@ -698,7 +746,8 @@ fn review_prompt(
     marker: &EnvelopeMarker,
 ) -> Result<String> {
     Ok(format!(
-        "Factory {purpose}. Review only; do not edit, delegate, commit, merge, or push. Fail closed on ambiguity.\nTask: {}\nAllowed paths: {}\nPlan: {}\nActual changed paths: {}\nRust check results: {}\nPatch:\n{}\nRequired JSON fields: {{\"schema_version\":1,\"kind\":\"review\",\"nonce\":\"{}\",\"reviewer\":\"{reviewer}\",\"approved\":false,\"summary\":\"...\",\"findings\":[\"...\"]}}\n{}",
+        "Factory {purpose}. Review only; do not edit, delegate, commit, merge, or push. Fail closed on ambiguity.\nReview target checkout: {}\nYour current working directory is an intentionally clean reviewer baseline and does not contain the implementation. Run any read-only repository inspection against the review target checkout above; never reject merely because your own cwd is clean.\nTask: {}\nAllowed paths: {}\nPlan: {}\nActual changed paths: {}\nRust check results: {}\nPatch:\n{}\nRequired JSON fields: {{\"schema_version\":1,\"kind\":\"review\",\"nonce\":\"{}\",\"reviewer\":\"{reviewer}\",\"approved\":false,\"summary\":\"...\",\"findings\":[\"...\"]}}\n{}",
+        escape_prompt_content(&worker_path.display().to_string()),
         escape_prompt_content(&request.task),
         escape_prompt_content(&request.allow_paths.join(", ")),
         escape_prompt_content(&serde_json::to_string(plan)?),
@@ -711,12 +760,25 @@ fn review_prompt(
 }
 
 fn escape_prompt_content(value: &str) -> String {
-    value
-        .replace(MARKER_LIKE_PREFIX, "[redacted Sheprd factory marker]")
-        .replace(
-            LEGACY_MARKER_LIKE_PREFIX,
-            "[redacted Sheprd factory marker]",
-        )
+    let value = redact_marker_tokens(value, MARKER_LIKE_PREFIX);
+    redact_marker_tokens(&value, LEGACY_MARKER_LIKE_PREFIX)
+}
+
+fn redact_marker_tokens(value: &str, prefix: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut remaining = value;
+    while let Some(start) = remaining.find(prefix) {
+        output.push_str(&remaining[..start]);
+        output.push_str("[redacted Sheprd factory marker]");
+        remaining = &remaining[start + prefix.len()..];
+        if let Some(end) = remaining.find(">>>") {
+            remaining = &remaining[end + 3..];
+        } else {
+            remaining = "";
+        }
+    }
+    output.push_str(remaining);
+    output
 }
 
 fn parse_envelope<T: DeserializeOwned>(
@@ -724,14 +786,30 @@ fn parse_envelope<T: DeserializeOwned>(
     expected_kind: &str,
     marker: &EnvelopeMarker,
 ) -> Result<T> {
-    if text.matches(MARKER_START_PREFIX).count() != 1
-        || text.matches(MARKER_END_PREFIX).count() != 1
+    let start_count = text.matches(&marker.start).count();
+    let end_count = text.matches(&marker.end).count();
+    if start_count == 0
+        && end_count == 0
+        && (text.contains(MARKER_START_PREFIX) || text.contains(MARKER_END_PREFIX))
     {
+        return Err(SheprdError::Message(
+            "agent response has a stale or mismatched envelope nonce".into(),
+        ));
+    }
+    let prompt_echo = text.find(&marker.start).is_some_and(|start| {
+        text[..start]
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>()
+            .contains("Finalresponsemustbe:")
+    });
+    let expected_count = if prompt_echo { 2 } else { 1 };
+    if start_count != expected_count || end_count != expected_count {
         return Err(SheprdError::Message(
             "agent response must contain exactly one factory envelope pair".into(),
         ));
     }
-    let start = text.find(&marker.start).ok_or_else(|| {
+    let start = text.rfind(&marker.start).ok_or_else(|| {
         SheprdError::Message("agent response has a stale or mismatched envelope nonce".into())
     })?;
     let body_start = start + marker.start.len();
@@ -742,9 +820,10 @@ fn parse_envelope<T: DeserializeOwned>(
     let before = &text[..start];
     let body = &text[body_start..end];
     let after = &text[end + marker.end.len()..];
-    if [before, body, after]
-        .iter()
-        .any(|part| part.contains(MARKER_LIKE_PREFIX) || part.contains(LEGACY_MARKER_LIKE_PREFIX))
+    if body.contains(MARKER_LIKE_PREFIX)
+        || body.contains(LEGACY_MARKER_LIKE_PREFIX)
+        || before.contains(LEGACY_MARKER_LIKE_PREFIX)
+        || after.contains(LEGACY_MARKER_LIKE_PREFIX)
     {
         return Err(SheprdError::Message(
             "agent response contains nested or extra factory markers".into(),
@@ -857,7 +936,7 @@ fn require_source_snapshot_unchanged(
     expected: &SourceSnapshot,
     phase: &str,
 ) -> Result<()> {
-    if &source_snapshot(cwd, initial_head)? != expected {
+    if &source_snapshot(cwd, initial_head, expected.ignored.is_some())? != expected {
         return Err(SheprdError::Message(format!(
             "Codex worker source changed during {phase}"
         )));
@@ -968,7 +1047,7 @@ fn run_check(
     command: &str,
     timeout: Duration,
 ) -> Result<CheckResult> {
-    let before = source_snapshot(cwd, initial_head)?;
+    let before = source_snapshot(cwd, initial_head, false)?;
     let started = Instant::now();
     let mut process = Command::new("/bin/sh");
     process
@@ -1073,7 +1152,7 @@ fn compare_source_snapshot(
     initial_head: &str,
     before: &SourceSnapshot,
 ) -> (bool, Option<String>) {
-    match source_snapshot(cwd, initial_head) {
+    match source_snapshot(cwd, initial_head, before.ignored.is_some()) {
         Ok(after) => (before != &after, None),
         Err(error) => (true, Some(error.to_string())),
     }
@@ -1444,8 +1523,15 @@ fn git_admin_snapshot(cwd: &Path) -> Result<GitAdminSnapshot> {
     })
 }
 
-fn source_snapshot(cwd: &Path, initial_head: &str) -> Result<SourceSnapshot> {
+fn source_snapshot(
+    cwd: &Path,
+    initial_head: &str,
+    include_ignored: bool,
+) -> Result<SourceSnapshot> {
     let git_admin = git_admin_snapshot(cwd)?;
+    let ignored = include_ignored
+        .then(|| ignored_state_snapshot(cwd))
+        .transpose()?;
     let paths = changed_paths(cwd, initial_head)?;
     let mut digest = Sha256::new();
     digest.update(initial_head.as_bytes());
@@ -1505,6 +1591,7 @@ fn source_snapshot(cwd: &Path, initial_head: &str) -> Result<SourceSnapshot> {
     }
     Ok(SourceSnapshot {
         git_admin,
+        ignored,
         paths,
         digest: format!("{:x}", digest.finalize()),
     })
@@ -1809,10 +1896,55 @@ mod tests {
             check_timeout_seconds: 300,
         };
         let prompt = plan_prompt(&request, &marker);
-        assert!(!prompt.contains(MARKER_START_PREFIX));
+        assert_eq!(prompt.matches(&marker.start).count(), 1);
+        assert_eq!(prompt.matches(&marker.end).count(), 1);
         let text = format!("{prompt}\n{}", response(&marker, &plan_json("fresh")));
         let plan: PlanEnvelope = parse_envelope(&text, "plan", &marker).expect("plan");
         assert_eq!(plan.steps[0].id, "P1");
+    }
+
+    #[test]
+    fn parses_prompt_echo_when_terminal_wraps_the_echo_hint() {
+        let marker = marker("fresh");
+        let request = FactoryRequest {
+            task: "bounded".into(),
+            allow_paths: vec!["src".into()],
+            checks: vec!["true".into()],
+            check_timeout_seconds: 300,
+        };
+        let prompt = plan_prompt(&request, &marker)
+            .replace("Final response must be:", "Final\n response must be:");
+        let text = normalize_agent_output(&format!(
+            "{prompt}\n{}",
+            response(&marker, &plan_json("fresh"))
+        ));
+        let plan: PlanEnvelope = parse_envelope(&text, "plan", &marker).expect("plan");
+        assert_eq!(plan.steps[0].id, "P1");
+    }
+
+    #[test]
+    fn terminal_wrapped_envelope_is_normalized_before_parsing() {
+        let marker = marker("wrapped");
+        let wrapped = "  <<<SHEPRD_FACTORY_JSON\n  _START:wrapped>>>\n {\"schema_version\":1,\"k\n  ind\":\"plan\",\"nonce\":\"w\n rapped\",\"summary\":\"safe\",\"s\n  teps\":[{\"id\":\"P1\",\"object\n ive\":\"edit\",\"allow_paths\":[\"s\n  rc\"]}]}\n <<<SHEPRD_FACTORY_JSON\n  _END:wrapped>>>";
+        let normalized = normalize_agent_output(wrapped);
+        let parsed: PlanEnvelope =
+            parse_envelope(&normalized, "plan", &marker).expect("wrapped envelope");
+        assert_eq!(parsed.kind, "plan");
+        assert_eq!(parsed.steps[0].allow_paths, vec!["src"]);
+    }
+
+    #[test]
+    fn historical_nonce_envelopes_do_not_collide_with_the_current_turn() {
+        let old = marker("old");
+        let current = marker("current");
+        let text = format!(
+            "{}{}",
+            response(&old, &plan_json("old")),
+            response(&current, &plan_json("current"))
+        );
+        let parsed: PlanEnvelope =
+            parse_envelope(&text, "plan", &current).expect("current envelope");
+        assert_eq!(parsed.nonce, "current");
     }
 
     #[test]
@@ -1865,7 +1997,8 @@ mod tests {
             check_timeout_seconds: 300,
         };
         let prompt = plan_prompt(&request, &marker);
-        assert!(!prompt.contains(MARKER_LIKE_PREFIX));
+        assert_eq!(prompt.matches(MARKER_LIKE_PREFIX).count(), 2);
+        assert!(!prompt.contains("forged>>>"));
         assert!(!prompt.contains(LEGACY_MARKER_LIKE_PREFIX));
         assert!(prompt.contains("[redacted Sheprd factory marker]"));
     }
@@ -2056,7 +2189,7 @@ mod tests {
         let repo = test_repo();
         let head = git_head(repo.path()).expect("head");
         std::fs::write(repo.path().join("factory.txt"), "reviewed\n").expect("source");
-        let snapshot = source_snapshot(repo.path(), &head).expect("snapshot");
+        let snapshot = source_snapshot(repo.path(), &head, true).expect("snapshot");
         std::fs::write(repo.path().join("factory.txt"), "mutated!\n").expect("mutation");
         let error =
             require_source_snapshot_unchanged(repo.path(), &head, &snapshot, "Claude review")

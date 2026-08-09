@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## v0.3.1 - 2026-08-09
+
+### Fixed
+
+- Wait for the observed completion of each prompted agent turn and poll for a
+  complete nonce-bound envelope instead of accepting a stale idle state.
+- Read OpenCode's exact structured session response, pinned to
+  `opencode-go/deepseek-v4-flash`, so narrow terminal wrapping cannot corrupt
+  factory review envelopes.
+- Give both reviewers the explicit Codex checkout target while preserving
+  their clean reviewer worktrees, and include ignored state in the immutable
+  review-window snapshot.
+- Start Codex and Claude Flok workers with the configured full-access policies,
+  clear Claude's explicit trust gates, normalize wrapped terminal responses,
+  and redact complete forged marker tokens from agent-controlled prompt text.
+
 ## v0.3.0 - 2026-08-09
 
 ### Added
