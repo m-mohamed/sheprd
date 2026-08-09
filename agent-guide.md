@@ -15,7 +15,7 @@ The Flok grid is:
 ```text
 Pi · conductor       │ Codex · GPT-5.6 Sol
 ─────────────────────┼──────────────────────
-Claude · Opus 5      │ OpenCode · Kimi K3
+Claude · Opus 5      │ OpenCode · DeepSeek V4 Flash
 ```
 
 All four default to high effort. Pi conducts from the clean base checkout with
@@ -69,6 +69,8 @@ herdr agent read <name> --source recent --lines 120 --format text
 
 Before reporting completion, inspect repository state and test receipts. Agent
 messages are claims, not merge proof.
+
+For an explicit code-owned run, use `sheprd factory run` with a bounded task, repository-relative `--allow-path` values, and `--check` commands. The command preserves rejected work and returns trace and receipt paths; it never integrates the Codex worker branch.
 
 ## Clean up safely
 

@@ -32,6 +32,12 @@ pub enum Command {
         project: Option<String>,
     },
 
+    /// Run the deterministic, receipt-backed factory workflow in a Flok.
+    Factory {
+        #[command(subcommand)]
+        command: FactoryCommand,
+    },
+
     /// Preview or perform safe cleanup of a Flok workspace and worker checkouts.
     Cleanup {
         /// Project name or git checkout path. Defaults to the active Herdr project.
@@ -87,4 +93,29 @@ pub enum Command {
 
     /// Show the active config.
     ShowConfig,
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub enum FactoryCommand {
+    /// Plan, implement, check, review, and emit an acceptance receipt.
+    Run {
+        /// Project name or git checkout path. Defaults to the active Herdr project.
+        project: Option<String>,
+
+        /// Bounded task for the four-agent factory.
+        #[arg(long)]
+        task: String,
+
+        /// Repository-relative file or directory the Codex worker may change.
+        #[arg(long = "allow-path", required = true)]
+        allow_paths: Vec<String>,
+
+        /// Check command Rust runs in the Codex worker checkout. May be repeated.
+        #[arg(long = "check", required = true)]
+        checks: Vec<String>,
+
+        /// Per-check timeout in seconds.
+        #[arg(long = "check-timeout-seconds", default_value_t = 300)]
+        check_timeout_seconds: u64,
+    },
 }

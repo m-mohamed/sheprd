@@ -75,6 +75,62 @@ Successful JSON includes:
 - four `agents` with role, kind, name, pane, model, effort, cwd, and branch
 - `healthy` and `warnings`
 
+## `factory run`
+
+```bash
+sheprd factory run my-app --task "add retry metrics" \
+  --allow-path src/metrics.rs --check "cargo test metrics" --json
+```
+
+The command opens or focuses the project Flok, then runs this code-owned phase
+machine:
+
+1. Pi returns one fresh nonce-bound, sentinel-delimited `plan` JSON envelope;
+2. Codex implements in its existing isolated worker checkout and returns an
+   `implementation` envelope;
+3. Rust runs every caller-declared check command in that checkout;
+4. failed checks may cause at most two Codex correction turns;
+5. Claude returns an intent-review `review` envelope;
+6. OpenCode returns an adversarial-review `review` envelope;
+7. Rust accepts only if checks pass and both reviews approve.
+
+At least one `--allow-path` and `--check` are required. Allow paths are
+repository-relative files or directories. The Codex worker's initial HEAD must
+equal the base checkout's initial HEAD. Before every transition, Sheprd verifies
+that the base checkout and Codex worker HEAD have not changed and that actual
+changed paths remain in scope. Review checkouts must also remain unchanged. The
+Codex checkout must be clean before the run, making attribution unambiguous.
+
+Each check uses `/bin/sh -c`, not a login shell. Sheprd clears the environment,
+then inherits only `CARGO_HOME`, `HOME`, `LANG`, `LC_ALL`, `LOGNAME`, `PATH`,
+`RUSTC_WRAPPER`, `RUSTUP_HOME`, `TERM`, `TMPDIR`, and `USER`, and sets
+`SHEPRD_FACTORY_CHECK=1`; if `PATH` is absent it uses `/usr/bin:/bin`. The default
+per-check timeout is 300 seconds and can be changed with
+`--check-timeout-seconds`. A timeout kills the check process group. Sheprd
+snapshots tracked and non-ignored untracked source state around every check and
+fails if the check mutates it.
+
+Sheprd also snapshots bounded ignored-path metadata around every agent turn.
+Pi, Codex, Claude, and OpenCode may not create or modify ignored payloads.
+The snapshot fails closed above 100,000 entries, 16 MiB of enumerated path
+data, or 64 GiB of apparent ignored-file size.
+Caller-declared checks may create ignored build outputs; Sheprd adopts their
+post-check ignored state as the baseline before a correction. Those check-owned
+ignored outputs are excluded from the reviewed source patch. The exact worker
+source snapshot used for that patch must remain unchanged through both reviews,
+and claimed paths are checked against Git again afterward.
+
+The runner never commits, merges, pushes, or deletes worker state. Failed and
+rejected runs return a non-zero status and preserve changes. Each run creates an
+append-only `trace.jsonl` plus an atomic `receipt.json` under
+`$SHEPRD_STATE_DIR/factory`, or `~/.local/state/sheprd/factory`. The receipt
+includes envelopes, all check attempts, actual paths, integrity verdicts,
+review verdicts, acceptance, failure reason, and both state paths. Factory state
+directories are owner-only; trace, receipt, temporary, and lock files are mode
+`0600` on Unix. Review patches are capped at 48 KiB and every agent prompt is
+capped at 60 KiB before Herdr execution. Workflow code uses the agents already
+configured in the Flok and contains no model IDs.
+
 ## `cleanup`
 
 Preview is the default:

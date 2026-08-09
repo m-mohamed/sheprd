@@ -39,6 +39,7 @@ chaos-smoke: build
     target/release/sheprd init --print --json
     target/release/sheprd connect --help
     target/release/sheprd flok --help
+    target/release/sheprd factory run --help
     target/release/sheprd cleanup --help
     target/release/sheprd recipes
     target/release/sheprd recipes --json

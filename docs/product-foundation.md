@@ -18,6 +18,7 @@ Sheprd owns:
 - model and effort defaults;
 - clean-check protection and isolated worker worktrees;
 - operation locking, state receipts, health comparison, rollback, and cleanup.
+- the deterministic factory phase machine, typed envelopes, code-run checks, scope validation, traces, and acceptance receipts.
 
 If a feature makes Sheprd a multiplexer, general layout engine, session store,
 keybinding system, remote layer, or hidden agent harness, it belongs elsewhere.
@@ -36,6 +37,8 @@ inspected, never implicitly repaired.
 Cleanup is equally explicit: preview first, typed confirmation or `--confirm`,
 path ownership and cleanliness checks, workspace close, clean checkout removal,
 branch preservation, and state archival.
+
+Factory runs are code-owned loops over bounded phases: Pi plans, Codex implements, Rust checks, and Claude/OpenCode review. No agent decides phase order or acceptance; the runner never integrates or silently cleans rejected work.
 
 ## Product surfaces
 

@@ -1,12 +1,13 @@
 mod cli;
 mod config;
 mod error;
+mod factory;
 mod herdr;
 mod project;
 mod recipe;
 
 use clap::{CommandFactory, Parser};
-use cli::{Cli, Command};
+use cli::{Cli, Command, FactoryCommand};
 use config::{Config, FlokConfig};
 use error::{Result, SheprdError};
 use recipe::{Agent, Recipe, RecipeName};
@@ -60,6 +61,23 @@ fn run(cli: Cli) -> Result<ExitCode> {
 
     match command {
         Command::Flok { project } => flok(&config, project.as_deref(), cli.json),
+        Command::Factory { command } => match command {
+            FactoryCommand::Run {
+                project,
+                task,
+                allow_paths,
+                checks,
+                check_timeout_seconds,
+            } => factory_run(
+                &config,
+                project.as_deref(),
+                task,
+                allow_paths,
+                checks,
+                check_timeout_seconds,
+                cli.json,
+            ),
+        },
         Command::Cleanup { project, confirm } => {
             cleanup(&config, project.as_deref(), confirm, cli.json)
         }
@@ -74,6 +92,55 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::Doctor => doctor(&config, cli.json),
         Command::ShowConfig => show_config(&config, cli.json),
     }
+}
+
+fn factory_run(
+    config: &Config,
+    selector: Option<&str>,
+    task: String,
+    allow_paths: Vec<String>,
+    checks: Vec<String>,
+    check_timeout_seconds: u64,
+    json: bool,
+) -> Result<ExitCode> {
+    let project = match selector {
+        Some(selector) => project::resolve(config, selector)?,
+        None => project::resolve_active(config)?,
+    };
+    let receipt = factory::run(
+        &project,
+        &config.flok,
+        factory::FactoryRequest {
+            task,
+            allow_paths,
+            checks,
+            check_timeout_seconds,
+        },
+    )?;
+    if json {
+        print_json(&receipt)?;
+    } else {
+        println!(
+            "factory: {}",
+            if receipt.accepted {
+                "accepted"
+            } else {
+                "rejected"
+            }
+        );
+        println!("project: {}", receipt.project);
+        println!("changed paths: {}", receipt.changed_paths.join(", "));
+        println!("trace: {}", receipt.trace_path);
+        println!("receipt: {}", receipt.receipt_path);
+        if let Some(failure) = &receipt.failure {
+            println!("failure: {failure}");
+        }
+    }
+    Ok(if receipt.accepted {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    })
 }
 
 fn cleanup(config: &Config, selector: Option<&str>, confirm: bool, json: bool) -> Result<ExitCode> {

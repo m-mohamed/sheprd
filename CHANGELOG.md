@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- Added `sheprd factory run`, a deterministic Pi-plan/Codex-build/Rust-check/Claude-intent-review/OpenCode-adversarial-review workflow with typed sentinel envelopes, two bounded correction turns, explicit path scope, append-only JSONL phase traces, final JSON receipts, and fail-closed acceptance.
+
+### Changed
+
+- Updated the default OpenCode model to `opencode-go/deepseek-v4-flash`; factory workflow code continues to consume configured Flok agents without model IDs.
+- Hardened factory turns with fresh nonce-bound envelopes, stale-worker rejection, bounded prompts and checks, ignored-state attribution, immutable review-source snapshots, mutation detection, and owner-only state artifacts.
+
 ## v0.2.1 - 2026-07-26
 
 ### Fixed

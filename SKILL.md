@@ -52,6 +52,26 @@ Workers own separate branches and worktrees. Before synthesis, inspect the
 actual diff, commit, test output, and working-tree state for each worker. Pi may
 coordinate integration but must not silently edit the base checkout.
 
+## Factory run
+
+Use the deterministic factory when the task has explicit paths and checks:
+
+```bash
+target/release/sheprd factory run <project> --task '<bounded task>' \
+  --allow-path <repo-relative-path> --check '<check command>' --json
+```
+
+The Rust runner owns phase order and parses one fresh nonce-bound, sentinel-delimited
+typed JSON envelope per agent turn. Pi plans; Codex implements and receives no more than
+two check-driven correction turns; Claude reviews intent; OpenCode reviews
+adversarially. Rust runs checks without an agent, using `/bin/sh -c`, a bounded
+timeout, and source-state mutation detection. Agent-owned ignored mutations are
+rejected; check-owned ignored outputs are excluded from the reviewed patch.
+Acceptance is false unless the checks pass, both reviews approve, the base
+checkout and worker HEAD remain unchanged, and every actual changed path is
+allowed. Never treat a rejected receipt as an integration result; inspect the
+preserved worker checkout.
+
 ## Cleanup
 
 Preview through the headless action:

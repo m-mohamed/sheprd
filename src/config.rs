@@ -30,7 +30,7 @@ impl Default for FlokConfig {
             pi_model: "openai-codex/gpt-5.6-sol".into(),
             codex_model: "gpt-5.6-sol".into(),
             claude_model: "claude-opus-5".into(),
-            opencode_model: "opencode-go/kimi-k3".into(),
+            opencode_model: "opencode-go/deepseek-v4-flash".into(),
         }
     }
 }
@@ -230,7 +230,7 @@ fn sample_config(default_agent: Agent, roots: &[String]) -> String {
         "pi_model = \"openai-codex/gpt-5.6-sol\"".into(),
         "codex_model = \"gpt-5.6-sol\"".into(),
         "claude_model = \"claude-opus-5\"".into(),
-        "opencode_model = \"opencode-go/kimi-k3\"".into(),
+        "opencode_model = \"opencode-go/deepseek-v4-flash\"".into(),
         "".into(),
         "# Use explicit projects when the public name should differ from the directory name."
             .into(),

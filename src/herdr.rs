@@ -156,6 +156,34 @@ pub fn workspace_labels() -> Result<BTreeSet<String>> {
         .collect())
 }
 
+pub fn prompt_agent(name: &str, prompt: &str) -> Result<()> {
+    run_herdr(["agent", "prompt", name, prompt])
+}
+
+pub fn wait_for_agent(name: &str) -> Result<()> {
+    run_herdr([
+        "agent",
+        "wait",
+        name,
+        "--until",
+        "idle",
+        "--timeout",
+        "120000",
+    ])
+}
+
+pub fn read_agent(name: &str) -> Result<String> {
+    let output = Command::new(herdr_bin())
+        .args([
+            "agent", "read", name, "--source", "recent", "--lines", "240", "--format", "text",
+        ])
+        .output()?;
+    if !output.status.success() {
+        return Err(SheprdError::Message(command_error(output.stderr)));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
 pub fn connect(
     project: &Project,
     agent: Agent,

@@ -22,12 +22,12 @@ one zoomable workspace:
 | Pi | conductor in the clean base checkout | `openai-codex/gpt-5.6-sol` · `high` |
 | Codex CLI | implementation worker | `gpt-5.6-sol` · `high` |
 | Claude Code | implementation/review worker | `claude-opus-5` · `high` |
-| OpenCode | open-model worker | `opencode-go/kimi-k3` · `high` |
+| OpenCode | open-model worker | `opencode-go/deepseek-v4-flash` · `high` |
 
 ```text
 Pi · conductor       │ Codex · GPT-5.6 Sol
 ─────────────────────┼──────────────────────
-Claude · Opus 5      │ OpenCode · Kimi K3
+Claude · Opus 5      │ OpenCode · DeepSeek V4 Flash
 ```
 
 Pi coordinates through Herdr's supported `agent prompt`, `agent wait`, and
@@ -125,6 +125,20 @@ The cleanup overlay refuses dirty or out-of-scope worker paths, closes the Herdr
 workspace before removing checkouts, preserves all worker branches, and moves
 the state receipt into plugin history.
 
+## Run the factory
+
+From a source checkout, run one bounded task through an existing or newly
+created Flok:
+
+```bash
+target/release/sheprd factory run my-app --task "add retry metrics" \
+  --allow-path src/metrics.rs --check "cargo test metrics" --json
+```
+
+Rust owns the sequence: typed Pi plan, Codex implementation, caller-declared checks, at most two Codex corrections, Claude intent review, then OpenCode adversarial review. Each agent turn uses a fresh nonce-bound JSON envelope. Acceptance requires passing checks and approval from both reviewers.
+
+The factory refuses a stale or dirty Codex checkout, commits, base-checkout drift, agent-authored ignored payloads, and changes outside `--allow-path`. Checks run through `/bin/sh -c` with a documented environment allowlist and a 300-second default timeout, configurable with `--check-timeout-seconds`; timeouts kill the check process group, and any check that mutates reviewed source state fails the run. Check-owned ignored build outputs are allowed but excluded from the reviewed patch. It never merges or pushes. Every attempt writes private append-only `trace.jsonl` and final `receipt.json` files below the stable Sheprd state root; rejected runs return a non-zero exit status and preserve all worker changes for inspection.
+
 ## Configuration
 
 Get the Herdr-managed config directory:
@@ -147,7 +161,7 @@ effort = "high"
 pi_model = "openai-codex/gpt-5.6-sol"
 codex_model = "gpt-5.6-sol"
 claude_model = "claude-opus-5"
-opencode_model = "opencode-go/kimi-k3"
+opencode_model = "opencode-go/deepseek-v4-flash"
 ```
 
 Resolution order is `SHEPRD_CONFIG`, Herdr's plugin config directory, then the

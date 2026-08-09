@@ -68,7 +68,7 @@
             <div class="agent pi"><span class="role">conductor</span><strong>Pi</strong><small>GPT-5.6 Sol · high</small></div>
             <div class="agent codex"><span class="role">worker 01</span><strong>Codex CLI</strong><small>GPT-5.6 Sol · high</small></div>
             <div class="agent claude"><span class="role">worker 02</span><strong>Claude Code</strong><small>Opus 5 · high</small></div>
-            <div class="agent open"><span class="role">worker 03</span><strong>OpenCode</strong><small>Kimi K3 · high</small></div>
+            <div class="agent open"><span class="role">worker 03</span><strong>OpenCode</strong><small>DeepSeek V4 Flash · high</small></div>
           </div>
         </div>
       </header>
@@ -81,14 +81,14 @@
           <div class="card"><b>Isolated</b><p>Pi stays in the clean base. Every worker receives its own branch and worktree.</p></div>
           <div class="card"><b>Recoverable</b><p>Transactional launch, atomic receipts, clean-only rollback, typed-confirmation cleanup.</p></div>
         </div>
-        <div class="flow"><b>Git project</b> → visible Flok → isolated workers → evidence-backed result</div>
+        <div class="flow"><b>Git project</b> → nonce-bound plan → isolated implementation → bounded code-run checks → two reviews → private receipt</div>
       </section>
 
       <section id="quick-start">
         <div class="eyebrow"># quick-start</div><h2>Open, inspect, conduct.</h2>
         <pre><span class="prompt">$</span> herdr plugin action invoke m-mohamed.sheprd.doctor
 <span class="prompt">$</span> herdr plugin action invoke m-mohamed.sheprd.open-flok
-<span class="prompt">$</span> herdr agent list</pre>
+<span class="prompt">$</span> sheprd factory run my-app --task "bounded change" --allow-path src --check "cargo test" --json</pre>
       </section>
 
       <section id="actions">

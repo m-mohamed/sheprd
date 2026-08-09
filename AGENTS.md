@@ -43,6 +43,8 @@ stop and start with a discussion.
 - `src/cli.rs` owns CLI shape and help text.
 - `src/config.rs` owns config loading and path expansion.
 - `src/project.rs` owns project discovery and selector resolution.
+- `src/factory.rs` owns the deterministic factory phase machine, typed
+  envelopes, declared checks, scope validation, traces, and receipts.
 - `src/herdr.rs` is the only layer that shells out to `herdr`.
 - `src/recipe.rs` owns sample recipe descriptions.
 - `src/main.rs` renders human and JSON command output.
