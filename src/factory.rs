@@ -34,6 +34,7 @@ const CHECK_POLL_INTERVAL: Duration = Duration::from_millis(25);
 const AGENT_RESPONSE_POLL_INTERVAL: Duration = Duration::from_millis(100);
 const AGENT_RESPONSE_SETTLE_TIMEOUT: Duration = Duration::from_secs(2);
 const AGENT_RESPONSE_TIMEOUT: Duration = Duration::from_secs(120);
+const OPENCODE_AGENT_RESPONSE_TIMEOUT: Duration = Duration::from_secs(300);
 const CHECK_ENV_ALLOWLIST: &[&str] = &[
     "CARGO_HOME",
     "HOME",
@@ -851,7 +852,7 @@ fn run_agent_phase(
             json!({ "agent": agent.name, "kind": agent.kind }),
         )?;
     }
-    let deadline = Instant::now() + AGENT_RESPONSE_TIMEOUT;
+    let deadline = Instant::now() + agent_response_timeout(&agent.kind);
     let recovery_at = Instant::now() + AGENT_RESPONSE_SETTLE_TIMEOUT;
     let mut recovery_prompted = false;
     let text = loop {
@@ -898,6 +899,14 @@ fn run_agent_phase(
         json!({ "agent": agent.name, "bytes": text.len() }),
     )?;
     Ok(text)
+}
+
+fn agent_response_timeout(kind: &str) -> Duration {
+    if kind == "opencode" {
+        OPENCODE_AGENT_RESPONSE_TIMEOUT
+    } else {
+        AGENT_RESPONSE_TIMEOUT
+    }
 }
 
 fn run_review_phase(
@@ -3286,4 +3295,9 @@ mod tests {
         .expect_err("racing lock");
         assert!(error.to_string().contains("factory lock changed"));
     }
+}
+#[test]
+fn opencode_has_a_longer_structured_response_window() {
+    assert_eq!(agent_response_timeout("opencode"), Duration::from_secs(300));
+    assert_eq!(agent_response_timeout("codex"), Duration::from_secs(120));
 }
