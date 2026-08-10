@@ -1634,6 +1634,35 @@ fn factory_run_retries_a_partial_opencode_session_export() {
 }
 
 #[test]
+fn factory_run_falls_back_when_opencode_session_export_stays_malformed() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_opencode_export();
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_FACTORY_OPENCODE_EXPORT", "1")
+        .env("OPENCODE_EXPORT_ALWAYS_MALFORMED", "1")
+        .args([
+            "factory",
+            "run",
+            &repo.display().to_string(),
+            "--task",
+            "fall back from a malformed OpenCode export",
+            "--allow-path",
+            "factory.txt",
+            "--check",
+            "true",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"accepted\": true"));
+}
+
+#[test]
 fn factory_run_rejects_duplicate_and_wrong_nonce_envelopes() {
     for (env_name, env_value, expected) in [
         (
@@ -2211,6 +2240,10 @@ impl Fixture {
             &self.bin.join("opencode"),
             r#"#!/bin/sh
 if [ "$1" != "export" ]; then
+  exit 0
+fi
+if [ -n "${OPENCODE_EXPORT_ALWAYS_MALFORMED:-}" ]; then
+  printf '{"info": invalid'
   exit 0
 fi
 attempt_file="$HOME/opencode-export-attempt"

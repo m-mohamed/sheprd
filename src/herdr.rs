@@ -265,12 +265,11 @@ fn read_opencode_session_response(name: &str) -> Result<Option<String>> {
             }
             match serde_json::from_slice::<serde_json::Value>(&export.stdout) {
                 Ok(value) => Some(Ok(Some(value))),
-                Err(error) if error.is_eof() && attempt + 1 < OPENCODE_EXPORT_PARSE_ATTEMPTS => {
+                Err(_) if attempt + 1 < OPENCODE_EXPORT_PARSE_ATTEMPTS => {
                     thread::sleep(OPENCODE_EXPORT_PARSE_RETRY);
                     None
                 }
-                Err(error) if error.is_eof() => Some(Ok(None)),
-                Err(error) => Some(Err(SheprdError::Json(error))),
+                Err(_) => Some(Ok(None)),
             }
         })
         .transpose()?
