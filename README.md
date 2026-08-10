@@ -81,7 +81,7 @@ provenance mismatch is a hard failure. See
 Pin a revision when you want a reproducible source checkout:
 
 ```bash
-herdr plugin install m-mohamed/sheprd --ref v0.3.1
+herdr plugin install m-mohamed/sheprd --ref v0.4.0
 ```
 
 ## Open a Flok

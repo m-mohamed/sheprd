@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.4.0 - 2026-08-09
+
 ### Added
 
 - Version factory receipts with explicit timing, attempt counts, acceptance,
