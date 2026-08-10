@@ -1600,6 +1600,40 @@ fn factory_run_waits_again_after_a_prompt_status_timeout() {
 }
 
 #[test]
+fn factory_run_retries_a_partial_opencode_session_export() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_opencode_export();
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_FACTORY_OPENCODE_EXPORT", "1")
+        .args([
+            "factory",
+            "run",
+            &repo.display().to_string(),
+            "--task",
+            "retry a partial OpenCode export",
+            "--allow-path",
+            "factory.txt",
+            "--check",
+            "true",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"accepted\": true"));
+
+    assert!(fixture
+        .home
+        .path()
+        .join("opencode-export-attempt")
+        .is_file());
+}
+
+#[test]
 fn factory_run_rejects_duplicate_and_wrong_nonce_envelopes() {
     for (env_name, env_value, expected) in [
         (
@@ -2172,6 +2206,26 @@ impl Fixture {
         write_executable(&self.bin.join(name), "#!/bin/sh\nexit 0\n");
     }
 
+    fn fake_opencode_export(&self) {
+        write_executable(
+            &self.bin.join("opencode"),
+            r#"#!/bin/sh
+if [ "$1" != "export" ]; then
+  exit 0
+fi
+attempt_file="$HOME/opencode-export-attempt"
+if [ ! -e "$attempt_file" ]; then
+  : > "$attempt_file"
+  printf '{"info":'
+  exit 0
+fi
+nonce_file=$(find "$HOME" -maxdepth 1 -name 'herdr-nonce-*-opencode-*' -print -quit)
+nonce=$(cat "$nonce_file")
+printf '{"info":{"model":{"providerID":"opencode-go","id":"deepseek-v4-flash"}},"messages":[{"info":{"role":"assistant"},"parts":[{"type":"text","text":"<<<SHEPRD_FACTORY_JSON_START:%s>>>\\n{\\\"schema_version\\\":1,\\\"kind\\\":\\\"review\\\",\\\"nonce\\\":\\\"%s\\\",\\\"reviewer\\\":\\\"opencode\\\",\\\"approved\\\":true,\\\"summary\\\":\\\"export recovered\\\",\\\"findings\\\":[]}\\n<<<SHEPRD_FACTORY_JSON_END:%s>>>"}]}]}\n' "$nonce" "$nonce" "$nonce"
+"#,
+        );
+    }
+
     fn fake_herdr(&self, existing_label: Option<&str>) {
         let existing = existing_label.unwrap_or("");
         let workspace_id = if existing.is_empty() {
@@ -2281,6 +2335,13 @@ case "$1 $2" in
 	    ;;
 	  "agent wait")
 	    printf '{{"id":"x","result":{{"type":"ok"}}}}'
+	    ;;
+	  "agent get")
+	    if [ -n "${{HERDR_FACTORY_OPENCODE_EXPORT:-}}" ] && printf '%s' "$3" | grep -F -- '-opencode-' >/dev/null; then
+	      printf '{{"id":"x","result":{{"agent":{{"agent_session":{{"value":"fake-opencode-session"}}}}}}}}'
+	    else
+	      printf '{{"id":"x","result":{{"type":"ok"}}}}'
+	    fi
 	    ;;
 	  "agent read")
 	    if [ "$5" != "recent-unwrapped" ]; then

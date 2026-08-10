@@ -12,6 +12,9 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
+const OPENCODE_EXPORT_PARSE_ATTEMPTS: usize = 20;
+const OPENCODE_EXPORT_PARSE_RETRY: Duration = Duration::from_millis(100);
+
 const MIN_HERDR_VERSION: &str = "0.7.5";
 const FLOK_STATE_SCHEMA_VERSION: u32 = 1;
 
@@ -245,16 +248,36 @@ fn read_opencode_session_response(name: &str) -> Result<Option<String>> {
         return Ok(None);
     };
 
-    let export = Command::new("opencode")
-        .args(["export", session_id])
-        .output()?;
-    if !export.status.success() {
-        return Err(SheprdError::Message(format!(
-            "could not export OpenCode session {session_id}: {}",
-            command_error(export.stderr)
-        )));
-    }
-    let export: serde_json::Value = serde_json::from_slice(&export.stdout)?;
+    let export = (0..OPENCODE_EXPORT_PARSE_ATTEMPTS)
+        .find_map(|attempt| {
+            let export = match Command::new("opencode")
+                .args(["export", session_id])
+                .output()
+            {
+                Ok(export) => export,
+                Err(error) => return Some(Err(SheprdError::Io(error))),
+            };
+            if !export.status.success() {
+                return Some(Err(SheprdError::Message(format!(
+                    "could not export OpenCode session {session_id}: {}",
+                    command_error(export.stderr)
+                ))));
+            }
+            match serde_json::from_slice::<serde_json::Value>(&export.stdout) {
+                Ok(value) => Some(Ok(Some(value))),
+                Err(error) if error.is_eof() && attempt + 1 < OPENCODE_EXPORT_PARSE_ATTEMPTS => {
+                    thread::sleep(OPENCODE_EXPORT_PARSE_RETRY);
+                    None
+                }
+                Err(error) if error.is_eof() => Some(Ok(None)),
+                Err(error) => Some(Err(SheprdError::Json(error))),
+            }
+        })
+        .transpose()?
+        .flatten();
+    let Some(export) = export else {
+        return Ok(None);
+    };
     let provider = export
         .pointer("/info/model/providerID")
         .and_then(serde_json::Value::as_str);
