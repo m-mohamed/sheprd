@@ -40,13 +40,15 @@ a healthy four-agent roster.
 Pi should send bounded, self-contained packets to the three visible workers:
 
 ```bash
-herdr agent prompt <agent-name> '<task with scope, checks, and stop conditions>'
-herdr agent wait <agent-name> --until idle --timeout 120000
-herdr agent read <agent-name> --source recent --lines 120 --format text
+herdr agent prompt <agent-name> '<task with scope, checks, and stop conditions>' --wait --timeout 120000
+herdr agent read <agent-name> --source recent-unwrapped --lines 120 --format text
 ```
 
-Use only current Herdr 0.7.5 commands. Do not copy older `agent send`,
-`agent wait --status`, or implicit agent-start examples.
+Treat `herdr --skill` from the installed binary as the command authority.
+Sheprd intentionally supports Herdr 0.7.5 and newer and is verified against
+Herdr 0.8.0; do not confuse the compatibility floor with the current runtime.
+Do not copy older `agent send`, `agent wait --status`, or implicit agent-start
+examples. Outside a Herdr-managed pane, do not control a live session.
 
 Workers own separate branches and worktrees. Before synthesis, inspect the
 actual diff, commit, test output, and working-tree state for each worker. Pi may

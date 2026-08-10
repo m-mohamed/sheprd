@@ -31,13 +31,14 @@ This is the public trust scorecard for the Sheprd Herdr plugin.
 ## Release gates
 
 1. `just check` and `git diff --check` pass.
-2. The manifest links and every action resolves in live Herdr `0.7.5`.
+2. The manifest retains its intentional Herdr `0.7.5` compatibility floor and
+   every action resolves in the current live Herdr `0.8.0` runtime.
 3. A disposable clean repository creates, focuses, previews cleanup, and cleans
    without leaked worktrees or workspace state.
 4. A real repository is iterated through the visible Pi/worker flow with a
    repository commit and test receipt.
 5. Independent review finds no unresolved correctness, security, docs, or
    packaging issue.
-6. Public visibility, `v0.3.1`, release assets, checksums, attestations, clean
+6. Public visibility, `v0.4.0`, release assets, checksums, attestations, clean
    public install, `herdr-plugin` topic, and marketplace listing are verified
    as separate receipts.

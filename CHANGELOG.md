@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changed
+
+- Audit the complete Herdr marketplace index, document the plugin trust and
+  ownership boundaries, and align operator guidance with the current Herdr
+  0.8.0 skill while retaining the intentional 0.7.5 compatibility floor.
+- Refresh public launch and readiness receipts for the current v0.4.0 release.
+
 ## v0.4.0 - 2026-08-09
 
 ### Added

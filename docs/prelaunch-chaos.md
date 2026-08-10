@@ -40,8 +40,9 @@ herdr plugin action invoke m-mohamed.sheprd.doctor
 herdr plugin log list --plugin m-mohamed.sheprd
 ```
 
-Expected: Herdr accepts the manifest, lists five actions, and doctor reports
-Herdr `0.7.5`, protocol `17`, Git, and four agent CLIs ready.
+Expected: Herdr accepts the manifest, lists five actions, and doctor reports the
+current Herdr `0.8.0` runtime, compatible protocol, Git, and four agent CLIs
+ready. The manifest's compatibility floor remains `0.7.5`.
 
 ## Disposable Flok gate
 
