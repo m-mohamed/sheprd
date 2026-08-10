@@ -32,6 +32,7 @@ const MAX_IGNORED_ENUM_BYTES: usize = 16 * 1024 * 1024;
 const MAX_IGNORED_TOTAL_FILE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
 const CHECK_POLL_INTERVAL: Duration = Duration::from_millis(25);
 const AGENT_RESPONSE_POLL_INTERVAL: Duration = Duration::from_millis(100);
+const AGENT_RESPONSE_SETTLE_TIMEOUT: Duration = Duration::from_secs(2);
 const AGENT_RESPONSE_TIMEOUT: Duration = Duration::from_secs(120);
 const CHECK_ENV_ALLOWLIST: &[&str] = &[
     "CARGO_HOME",
@@ -745,7 +746,7 @@ fn execute_factory(
         &patch,
         &claude_marker,
     )?;
-    let claude_result = run_agent_phase(
+    let claude_review = run_review_phase(
         claude,
         &claude_prompt,
         "claude_review",
@@ -757,8 +758,7 @@ fn execute_factory(
             "Claude review modified its checkout".into(),
         ));
     }
-    let claude_text = claude_result?;
-    let claude_review: ReviewEnvelope = parse_envelope(&claude_text, "review", &claude_marker)?;
+    let claude_review = claude_review?;
     validate_reviewer(&claude_review, "claude")?;
     trace.append(
         "claude_review",
@@ -786,7 +786,7 @@ fn execute_factory(
         &patch,
         &opencode_marker,
     )?;
-    let opencode_result = run_agent_phase(
+    let opencode_review = run_review_phase(
         opencode,
         &opencode_prompt,
         "opencode_review",
@@ -798,9 +798,7 @@ fn execute_factory(
             "OpenCode review modified its checkout".into(),
         ));
     }
-    let opencode_text = opencode_result?;
-    let opencode_review: ReviewEnvelope =
-        parse_envelope(&opencode_text, "review", &opencode_marker)?;
+    let opencode_review = opencode_review?;
     validate_reviewer(&opencode_review, "opencode")?;
     trace.append(
         "opencode_review",
@@ -847,6 +845,8 @@ fn run_agent_phase(
     )?;
     herdr::prompt_agent(&agent.name, prompt)?;
     let deadline = Instant::now() + AGENT_RESPONSE_TIMEOUT;
+    let recovery_at = Instant::now() + AGENT_RESPONSE_SETTLE_TIMEOUT;
+    let mut recovery_prompted = false;
     let text = loop {
         let text = normalize_agent_output(&herdr::read_agent_response(&agent.name, &agent.kind)?);
         if (text.contains(&marker.start) && text.contains(&marker.end))
@@ -854,7 +854,23 @@ fn run_agent_phase(
         {
             break text;
         }
-        if Instant::now() >= deadline {
+        let now = Instant::now();
+        if !recovery_prompted && now >= recovery_at {
+            let recovery_prompt = format!(
+                "Factory {phase} envelope recovery. The previous typed envelope is not visible to the controller. Do not redo the work. Re-emit only the existing {phase} envelope.\n{}",
+                marker.instructions()
+            );
+            require_agent_prompt_size(&recovery_prompt)?;
+            trace.append(
+                phase,
+                "recovery_prompted",
+                json!({ "agent": agent.name, "kind": agent.kind }),
+            )?;
+            herdr::prompt_agent(&agent.name, &recovery_prompt)?;
+            recovery_prompted = true;
+            continue;
+        }
+        if now >= deadline {
             return Err(SheprdError::Message(format!(
                 "timed out waiting for a complete {phase} factory envelope from {}",
                 agent.name
@@ -868,6 +884,38 @@ fn run_agent_phase(
         json!({ "agent": agent.name, "bytes": text.len() }),
     )?;
     Ok(text)
+}
+
+fn run_review_phase(
+    agent: &FlokAgent,
+    prompt: &str,
+    phase: &str,
+    marker: &EnvelopeMarker,
+    trace: &mut TraceWriter,
+) -> Result<ReviewEnvelope> {
+    let text = run_agent_phase(agent, prompt, phase, marker, trace)?;
+    match parse_envelope(&text, "review", marker) {
+        Ok(review) => Ok(review),
+        Err(error) => {
+            let correction_marker = EnvelopeMarker::fresh()?;
+            let correction_prompt = format!(
+                "Factory review envelope correction. Your previous review envelope was invalid JSON: {}. Do not repeat the review. Preserve the existing verdict and findings. Re-emit only a corrected review envelope. Required JSON fields: {{\"schema_version\":1,\"kind\":\"review\",\"nonce\":\"{}\",\"reviewer\":\"{}\",\"approved\":false,\"summary\":\"...\",\"findings\":[\"...\"]}}\n{}",
+                escape_prompt_content(&error.to_string()),
+                correction_marker.nonce,
+                agent.kind,
+                correction_marker.instructions()
+            );
+            require_agent_prompt_size(&correction_prompt)?;
+            trace.append(
+                phase,
+                "envelope_correction_prompted",
+                json!({ "agent": agent.name, "kind": agent.kind, "error": error.to_string() }),
+            )?;
+            let corrected_text =
+                run_agent_phase(agent, &correction_prompt, phase, &correction_marker, trace)?;
+            parse_envelope(&corrected_text, "review", &correction_marker)
+        }
+    }
 }
 
 fn normalize_agent_output(text: &str) -> String {

@@ -1486,6 +1486,84 @@ fn factory_run_polls_unwrapped_output_until_the_envelope_is_complete() {
 }
 
 #[test]
+fn factory_run_reprompts_once_when_settled_agent_envelope_is_not_visible() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_FACTORY_MISSING_ENVELOPE_UNTIL_RECOVERY", "codex")
+        .args([
+            "factory",
+            "run",
+            &repo.display().to_string(),
+            "--task",
+            "recover a hidden implementation envelope",
+            "--allow-path",
+            "factory.txt",
+            "--check",
+            "true",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"accepted\": true"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert_eq!(
+        log.lines()
+            .filter(|line| line.starts_with("agent prompt ") && line.contains("-codex-"))
+            .count(),
+        2
+    );
+    let trace =
+        std::fs::read_to_string(only_run_dir(&factory_project_dir(&fixture)).join("trace.jsonl"))
+            .expect("trace");
+    assert!(trace.contains("\"status\":\"recovery_prompted\""));
+}
+
+#[test]
+fn factory_run_corrects_one_malformed_review_envelope_without_repeating_review() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_FACTORY_MALFORMED_ENVELOPE_ONCE", "claude")
+        .args([
+            "factory",
+            "run",
+            &repo.display().to_string(),
+            "--task",
+            "correct malformed review JSON",
+            "--allow-path",
+            "factory.txt",
+            "--check",
+            "true",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"accepted\": true"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert_eq!(
+        log.lines()
+            .filter(|line| line.starts_with("agent prompt ") && line.contains("-claude-"))
+            .count(),
+        2
+    );
+    let trace =
+        std::fs::read_to_string(only_run_dir(&factory_project_dir(&fixture)).join("trace.jsonl"))
+            .expect("trace");
+    assert!(trace.contains("\"status\":\"envelope_correction_prompted\""));
+}
+
+#[test]
 fn factory_run_rejects_duplicate_and_wrong_nonce_envelopes() {
     for (env_name, env_value, expected) in [
         (
@@ -2111,7 +2189,15 @@ case "$1 $2" in
 	    nonce_file="$HOME/herdr-nonce-$3"
 	    first_nonce_file="$HOME/herdr-first-nonce-$3"
 	    prompt_file="$HOME/herdr-prompt-$3"
+	    recovery_file="$HOME/herdr-envelope-recovery-$3"
+	    correction_file="$HOME/herdr-envelope-correction-$3"
 	    printf '%s' "$4" > "$prompt_file"
+	    if printf '%s' "$4" | grep -F 'Do not redo the work. Re-emit only the existing' >/dev/null; then
+	      : > "$recovery_file"
+	    fi
+	    if printf '%s' "$4" | grep -F 'Do not repeat the review. Preserve the existing verdict and findings.' >/dev/null; then
+	      : > "$correction_file"
+	    fi
 	    if [ ! -e "$first_nonce_file" ]; then
 	      printf '%s' "$nonce" > "$first_nonce_file"
 	    fi
@@ -2161,6 +2247,17 @@ case "$1 $2" in
 	    fi
 	    if [ ! -e "$HOME/herdr-nonce-$3" ]; then
 	      printf 'Claude Code ready\n'
+	      exit 0
+	    fi
+	    recovery_file="$HOME/herdr-envelope-recovery-$3"
+	    if [ -n "${{HERDR_FACTORY_MISSING_ENVELOPE_UNTIL_RECOVERY:-}}" ] && printf '%s' "$3" | grep -F -- "-${{HERDR_FACTORY_MISSING_ENVELOPE_UNTIL_RECOVERY}}-" >/dev/null && [ ! -e "$recovery_file" ]; then
+	      printf 'Agent response is outside the readable alternate-screen viewport\n'
+	      exit 0
+	    fi
+	    correction_file="$HOME/herdr-envelope-correction-$3"
+	    if [ -n "${{HERDR_FACTORY_MALFORMED_ENVELOPE_ONCE:-}}" ] && printf '%s' "$3" | grep -F -- "-${{HERDR_FACTORY_MALFORMED_ENVELOPE_ONCE}}-" >/dev/null && [ ! -e "$correction_file" ]; then
+	      nonce=$(cat "$HOME/herdr-nonce-$3")
+	      printf '<<<SHEPRD_FACTORY_JSON_START:%s>>>\n{{"schema_version":1,"kind":"review","nonce":"%s","reviewer":"claude","approved":true,"summary":"unescaped "quote","findings":[]}}\n<<<SHEPRD_FACTORY_JSON_END:%s>>>\n' "$nonce" "$nonce" "$nonce"
 	      exit 0
 	    fi
 	    nonce=$(cat "$HOME/herdr-nonce-$3")
