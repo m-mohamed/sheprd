@@ -156,16 +156,45 @@ pub fn workspace_labels() -> Result<BTreeSet<String>> {
         .collect())
 }
 
-pub fn prompt_agent(name: &str, prompt: &str) -> Result<()> {
-    run_herdr([
-        "agent",
-        "prompt",
-        name,
-        prompt,
-        "--wait",
-        "--timeout",
-        "120000",
-    ])
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PromptOutcome {
+    Completed,
+    WaitRecovered,
+}
+
+pub fn prompt_agent(name: &str, prompt: &str) -> Result<PromptOutcome> {
+    let output = Command::new(herdr_bin())
+        .args([
+            "agent",
+            "prompt",
+            name,
+            prompt,
+            "--wait",
+            "--timeout",
+            "120000",
+        ])
+        .output()?;
+    if output.status.success() {
+        return Ok(PromptOutcome::Completed);
+    }
+    let error = command_error(output.stderr);
+    if !error.contains("\"code\":\"timeout\"")
+        || !error.contains("timed out waiting for agent status")
+    {
+        return Err(SheprdError::Message(error));
+    }
+
+    let wait = Command::new(herdr_bin())
+        .args(["agent", "wait", name, "--timeout", "120000"])
+        .output()?;
+    if wait.status.success() {
+        Ok(PromptOutcome::WaitRecovered)
+    } else {
+        Err(SheprdError::Message(format!(
+            "agent prompt timed out and follow-up wait failed: {}",
+            command_error(wait.stderr)
+        )))
+    }
 }
 
 pub fn read_agent(name: &str) -> Result<String> {

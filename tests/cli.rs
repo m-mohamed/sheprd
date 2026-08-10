@@ -1564,6 +1564,42 @@ fn factory_run_corrects_one_malformed_review_envelope_without_repeating_review()
 }
 
 #[test]
+fn factory_run_waits_again_after_a_prompt_status_timeout() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .env("HERDR_FACTORY_PROMPT_TIMEOUT_ONCE", "codex")
+        .args([
+            "factory",
+            "run",
+            &repo.display().to_string(),
+            "--task",
+            "recover a prompt status timeout",
+            "--allow-path",
+            "factory.txt",
+            "--check",
+            "true",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"accepted\": true"));
+
+    let log = std::fs::read_to_string(fixture.log()).expect("log");
+    assert!(log
+        .lines()
+        .any(|line| { line.starts_with("agent wait ") && line.contains("-codex-") }));
+    let trace =
+        std::fs::read_to_string(only_run_dir(&factory_project_dir(&fixture)).join("trace.jsonl"))
+            .expect("trace");
+    assert!(trace.contains("\"status\":\"prompt_wait_recovered\""));
+}
+
+#[test]
 fn factory_run_rejects_duplicate_and_wrong_nonce_envelopes() {
     for (env_name, env_value, expected) in [
         (
@@ -2235,6 +2271,12 @@ case "$1 $2" in
 	        fi
 	        ;;
 	    esac
+	    timeout_file="$HOME/herdr-prompt-timeout-$3"
+	    if [ -n "${{HERDR_FACTORY_PROMPT_TIMEOUT_ONCE:-}}" ] && printf '%s' "$3" | grep -F -- "-${{HERDR_FACTORY_PROMPT_TIMEOUT_ONCE}}-" >/dev/null && [ ! -e "$timeout_file" ]; then
+	      : > "$timeout_file"
+	      printf '{{"error":{{"code":"timeout","message":"timed out waiting for agent status"}},"id":"cli:agent:prompt"}}\n' >&2
+	      exit 42
+	    fi
 	    printf '{{"id":"x","result":{{"type":"ok"}}}}'
 	    ;;
 	  "agent wait")

@@ -843,7 +843,14 @@ fn run_agent_phase(
         "prompted",
         json!({ "agent": agent.name, "kind": agent.kind }),
     )?;
-    herdr::prompt_agent(&agent.name, prompt)?;
+    let prompt_outcome = herdr::prompt_agent(&agent.name, prompt)?;
+    if prompt_outcome == herdr::PromptOutcome::WaitRecovered {
+        trace.append(
+            phase,
+            "prompt_wait_recovered",
+            json!({ "agent": agent.name, "kind": agent.kind }),
+        )?;
+    }
     let deadline = Instant::now() + AGENT_RESPONSE_TIMEOUT;
     let recovery_at = Instant::now() + AGENT_RESPONSE_SETTLE_TIMEOUT;
     let mut recovery_prompted = false;
@@ -866,7 +873,14 @@ fn run_agent_phase(
                 "recovery_prompted",
                 json!({ "agent": agent.name, "kind": agent.kind }),
             )?;
-            herdr::prompt_agent(&agent.name, &recovery_prompt)?;
+            let prompt_outcome = herdr::prompt_agent(&agent.name, &recovery_prompt)?;
+            if prompt_outcome == herdr::PromptOutcome::WaitRecovered {
+                trace.append(
+                    phase,
+                    "prompt_wait_recovered",
+                    json!({ "agent": agent.name, "kind": agent.kind }),
+                )?;
+            }
             recovery_prompted = true;
             continue;
         }
