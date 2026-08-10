@@ -2,12 +2,23 @@
 
 ## Unreleased
 
+## v0.4.1 - 2026-08-09
+
 ### Changed
 
 - Audit the complete Herdr marketplace index, document the plugin trust and
   ownership boundaries, and align operator guidance with the current Herdr
   0.8.0 skill while retaining the intentional 0.7.5 compatibility floor.
-- Refresh public launch and readiness receipts for the current v0.4.0 release.
+- Refresh public launch and readiness receipts for the current release.
+
+### Fixed
+
+- Recover hidden typed envelopes after an agent turn settles without exposing
+  its final response.
+- Continue with an explicit follow-up wait when Herdr reports a prompt status
+  timeout after the agent accepted the turn.
+- Retry partial OpenCode session exports and fall back to Herdr pane output
+  when the structured export remains malformed.
 
 ## v0.4.0 - 2026-08-09
 

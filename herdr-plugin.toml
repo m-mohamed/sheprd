@@ -1,6 +1,6 @@
 id = "m-mohamed.sheprd"
 name = "Sheprd"
-version = "0.4.0"
+version = "0.4.1"
 min_herdr_version = "0.7.5"
 description = "Keep every coding agent in frame. Open a visible four-agent Flok in Herdr."
 platforms = ["linux", "macos"]
