@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v0.4.2 - 2026-08-09
+
+### Fixed
+
+- Give OpenCode reviews a 300-second structured-response window while keeping
+  the 120-second limit for Pi, Codex, and Claude.
+
 ## v0.4.1 - 2026-08-09
 
 ### Changed
