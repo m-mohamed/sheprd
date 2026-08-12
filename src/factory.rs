@@ -1022,7 +1022,7 @@ fn review_prompt(
     marker: &EnvelopeMarker,
 ) -> Result<String> {
     Ok(format!(
-        "Factory {purpose}. Review only; do not edit, delegate, commit, merge, or push. Fail closed on ambiguity.\nReview target checkout: {}\nYour current working directory is an intentionally clean reviewer baseline and does not contain the implementation. Run any read-only repository inspection against the review target checkout above; never reject merely because your own cwd is clean.\nTask: {}\nAllowed paths: {}\nPlan: {}\nActual changed paths: {}\nRust check results: {}\nPatch:\n{}\nRequired JSON fields: {{\"schema_version\":1,\"kind\":\"review\",\"nonce\":\"{}\",\"reviewer\":\"{reviewer}\",\"approved\":false,\"summary\":\"...\",\"findings\":[\"...\"]}}\n{}",
+        "Factory {purpose}. Review only; do not edit, delegate, commit, merge, or push. Fail closed on ambiguity. Inspect the supplied patch and check results once. Do not repeat analysis. Do not use tools unless one read-only inspection is necessary. Return the typed review envelope immediately after the review. Keep the summary and findings concise. A non-blocking coverage gap is not a reason to reject a correct change.\nReview target checkout: {}\nYour current working directory is an intentionally clean reviewer baseline and does not contain the implementation. Run any read-only repository inspection against the review target checkout above; never reject merely because your own cwd is clean.\nTask: {}\nAllowed paths: {}\nPlan: {}\nActual changed paths: {}\nRust check results: {}\nPatch:\n{}\nRequired JSON fields: {{\"schema_version\":1,\"kind\":\"review\",\"nonce\":\"{}\",\"reviewer\":\"{reviewer}\",\"approved\":false,\"summary\":\"...\",\"findings\":[\"...\"]}}\n{}",
         escape_prompt_content(&worker_path.display().to_string()),
         escape_prompt_content(&request.task),
         escape_prompt_content(&request.allow_paths.join(", ")),
@@ -2953,6 +2953,35 @@ mod tests {
         assert!(!prompt.contains("forged>>>"));
         assert!(!prompt.contains(LEGACY_MARKER_LIKE_PREFIX));
         assert!(prompt.contains("[redacted Sheprd factory marker]"));
+    }
+
+    #[test]
+    fn review_prompt_requires_a_bounded_immediate_verdict() {
+        let marker = marker("review");
+        let request = FactoryRequest {
+            task: "review the smoke test".into(),
+            plan: test_plan(),
+            allow_paths: vec!["scripts/smoke.lua".into()],
+            checks: vec!["make check".into()],
+            check_timeout_seconds: 300,
+        };
+        let prompt = review_prompt(
+            "opencode",
+            "adversarial review",
+            Path::new("/tmp/worker"),
+            &request,
+            &request.plan,
+            &[],
+            &["scripts/smoke.lua".into()],
+            "diff --git a/scripts/smoke.lua b/scripts/smoke.lua",
+            &marker,
+        )
+        .expect("review prompt");
+
+        assert!(prompt.contains("Inspect the supplied patch and check results once"));
+        assert!(prompt.contains("Do not repeat analysis"));
+        assert!(prompt.contains("Return the typed review envelope immediately"));
+        assert!(prompt.contains("A non-blocking coverage gap is not a reason to reject"));
     }
 
     #[test]

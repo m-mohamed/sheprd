@@ -451,7 +451,8 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
                 "--thinking".into(),
                 config.effort.clone(),
                 "--tools".into(),
-                "read,bash,grep,find,ls".into(),
+                "read,bash,grep,find,ls,factory_status,factory_agents,factory_delegate,factory_execute"
+                    .into(),
                 "--approve".into(),
                 "--name".into(),
                 pi_name.clone(),
@@ -468,12 +469,10 @@ pub fn open_flok(project: &Project, config: &FlokConfig) -> Result<FlokOutcome> 
                 config.codex_model.clone(),
                 "--config".into(),
                 format!("model_reasoning_effort={}", config.effort),
-                "--sandbox".into(),
-                "danger-full-access".into(),
                 "--add-dir".into(),
                 project.path.join(".git").to_string_lossy().into_owned(),
-                "--ask-for-approval".into(),
-                "never".into(),
+                "--dangerously-bypass-approvals-and-sandbox".into(),
+                "--dangerously-bypass-hook-trust".into(),
             ],
         )?;
         start_agent(

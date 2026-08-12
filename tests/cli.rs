@@ -479,7 +479,9 @@ fn flok_creates_exactly_four_agents_with_pinned_models_and_worker_worktrees() {
     assert!(log.contains("--agent build --model opencode-go/deepseek-v4-flash --mini"));
     assert!(log.contains("--model openai-codex/gpt-5.6-sol --thinking high"));
     assert!(log.contains("--model gpt-5.6-sol --config model_reasoning_effort=high"));
-    assert!(log.contains("--sandbox danger-full-access --add-dir"));
+    assert!(log.contains("--add-dir"));
+    assert!(log.contains("--dangerously-bypass-approvals-and-sandbox"));
+    assert!(log.contains("--dangerously-bypass-hook-trust"));
     assert!(log.contains("sample-app/.git"));
     assert!(log.contains("--model claude-opus-5 --effort high"));
     assert!(log.contains("--permission-mode bypassPermissions --chrome"));
@@ -488,6 +490,9 @@ fn flok_creates_exactly_four_agents_with_pinned_models_and_worker_worktrees() {
         .find(|line| line.starts_with("agent start") && line.contains("--kind pi"))
         .expect("Pi start command");
     assert!(pi_start.contains("Never spawn hidden or additional agents"));
+    assert!(pi_start.contains(
+        "--tools read,bash,grep,find,ls,factory_status,factory_agents,factory_delegate,factory_execute"
+    ));
     assert!(
         pi_start.len() < 1024,
         "Pi startup command must stay below conservative PTY input limits"
