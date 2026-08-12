@@ -8,7 +8,9 @@ Keep the boundary sharp:
 - Herdr owns runtime state, panes, tabs, sessions, remotes, keybindings,
   integrations, persistence, attach/detach, and agent status.
 - Sheprd owns project discovery, the explicit Flok layout, worker-worktree
-  creation, model defaults, preflight checks, and structured outcomes.
+  creation, model defaults, execution safety, checks, and structured outcomes.
+- Pi owns orchestration policy and supplies the typed plan. Sheprd must not
+  choose work, schedule work, or prompt Pi to create a plan.
 
 If a change turns `sheprd` into a terminal multiplexer, layout engine,
 keybinding layer, persistence layer, remote/SSH layer, or Herdr replacement,
@@ -43,8 +45,8 @@ stop and start with a discussion.
 - `src/cli.rs` owns CLI shape and help text.
 - `src/config.rs` owns config loading and path expansion.
 - `src/project.rs` owns project discovery and selector resolution.
-- `src/factory.rs` owns the deterministic factory phase machine, typed
-  envelopes, declared checks, scope validation, traces, and receipts.
+- `src/factory.rs` owns the deterministic execution protocol after Pi supplies
+  a typed plan: worker envelopes, checks, scope validation, traces, and receipts.
 - `src/herdr.rs` is the only layer that shells out to `herdr`.
 - `src/recipe.rs` owns sample recipe descriptions.
 - `src/main.rs` renders human and JSON command output.

@@ -79,13 +79,14 @@ Successful JSON includes:
 
 ```bash
 sheprd factory run my-app --task "add retry metrics" \
-  --allow-path src/metrics.rs --check "cargo test metrics" --json
+  --plan-file plan.json --allow-path src/metrics.rs \
+  --check "cargo test metrics" --json
 ```
 
-The command opens or focuses the project Flok, then runs this code-owned phase
-machine:
+Pi must create the typed JSON plan before this command starts. The command opens
+or focuses the project Flok, then runs this safety-owned execution protocol:
 
-1. Pi returns one fresh nonce-bound, sentinel-delimited `plan` JSON envelope;
+1. Sheprd validates the supplied plan against the caller's allow paths;
 2. Codex implements in its existing isolated worker checkout and returns an
    `implementation` envelope;
 3. Rust runs every caller-declared check command in that checkout;
@@ -94,7 +95,9 @@ machine:
 6. OpenCode returns an adversarial-review `review` envelope;
 7. Rust accepts only if checks pass and both reviews approve.
 
-At least one `--allow-path` and `--check` are required. Allow paths are
+`--plan-file`, at least one `--allow-path`, and at least one `--check` are
+required. The plan is a schema-1 `plan` envelope with a non-empty summary and
+one or more bounded steps. Allow paths are
 repository-relative files or directories. The Codex worker's initial HEAD must
 equal the base checkout's initial HEAD. Before every transition, Sheprd verifies
 that the base checkout and Codex worker HEAD have not changed and that actual
@@ -111,7 +114,7 @@ snapshots tracked and non-ignored untracked source state around every check and
 fails if the check mutates it.
 
 Sheprd also snapshots bounded ignored-path metadata around every agent turn.
-Pi, Codex, Claude, and OpenCode may not create or modify ignored payloads.
+Codex, Claude, and OpenCode may not create or modify ignored payloads.
 The snapshot fails closed above 100,000 entries, 16 MiB of enumerated path
 data, or 64 GiB of apparent ignored-file size.
 Caller-declared checks may create ignored build outputs; Sheprd adopts their

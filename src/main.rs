@@ -65,6 +65,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
             FactoryCommand::Run {
                 project,
                 task,
+                plan_file,
                 allow_paths,
                 checks,
                 check_timeout_seconds,
@@ -72,6 +73,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
                 &config,
                 project.as_deref(),
                 task,
+                plan_file,
                 allow_paths,
                 checks,
                 check_timeout_seconds,
@@ -160,6 +162,7 @@ fn factory_run(
     config: &Config,
     selector: Option<&str>,
     task: String,
+    plan_file: Option<std::path::PathBuf>,
     allow_paths: Vec<String>,
     checks: Vec<String>,
     check_timeout_seconds: u64,
@@ -169,11 +172,30 @@ fn factory_run(
         Some(selector) => project::resolve(config, selector)?,
         None => project::resolve_active(config)?,
     };
+    let plan_file = plan_file
+        .or_else(|| std::env::var_os("SHEPRD_FACTORY_PLAN_FILE").map(std::path::PathBuf::from))
+        .ok_or_else(|| {
+            SheprdError::Message("factory run requires --plan-file from the Pi orchestrator".into())
+        })?;
+    let plan: factory::PlanEnvelope =
+        serde_json::from_str(&std::fs::read_to_string(&plan_file).map_err(|error| {
+            SheprdError::Message(format!(
+                "could not read Pi plan at {}: {error}",
+                plan_file.display()
+            ))
+        })?)
+        .map_err(|error| {
+            SheprdError::Message(format!(
+                "could not parse Pi plan at {}: {error}",
+                plan_file.display()
+            ))
+        })?;
     let receipt = factory::run(
         &project,
         &config.flok,
         factory::FactoryRequest {
             task,
+            plan,
             allow_paths,
             checks,
             check_timeout_seconds,

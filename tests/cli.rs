@@ -1354,6 +1354,11 @@ fn factory_run_stops_after_two_failed_codex_corrections() {
 #[test]
 fn factory_run_rejects_a_changed_path_outside_the_allow_list() {
     let fixture = Fixture::new();
+    std::fs::write(
+        fixture.home.path().join("factory-plan.json"),
+        r#"{"schema_version":1,"kind":"plan","nonce":"pi-test","summary":"test plan","steps":[{"id":"P1","objective":"exercise the bounded factory protocol","allow_paths":["src"]}]}"#,
+    )
+    .expect("factory plan");
     fixture.write_config("codex");
     let repo = fixture.real_git_repo("sample-app");
     for tool in ["pi", "codex", "claude", "opencode"] {
@@ -1419,7 +1424,7 @@ fn factory_run_fails_closed_when_either_review_rejects() {
         .stdout(predicate::str::contains("\"reviewer\": \"opencode\""))
         .stdout(predicate::str::contains("\"approved\": false"))
         .stdout(predicate::str::contains(
-            "Claude and OpenCode must both approve acceptance",
+            "both independent reviewers must approve acceptance",
         ));
 
     let stats = factory_stats_json(&fixture, &repo);
@@ -1436,7 +1441,7 @@ fn factory_run_tolerates_prompt_echo_without_parseable_prompt_markers() {
     Command::cargo_bin("sheprd")
         .expect("binary")
         .envs(fixture.env())
-        .env("HERDR_FACTORY_PROMPT_ECHO", "pi")
+        .env("HERDR_FACTORY_PROMPT_ECHO", "codex")
         .args([
             "factory",
             "run",
@@ -1463,13 +1468,13 @@ fn factory_run_polls_unwrapped_output_until_the_envelope_is_complete() {
     Command::cargo_bin("sheprd")
         .expect("binary")
         .envs(fixture.env())
-        .env("HERDR_FACTORY_INCOMPLETE_READ_ONCE", "pi")
+        .env("HERDR_FACTORY_INCOMPLETE_READ_ONCE", "codex")
         .args([
             "factory",
             "run",
             &repo.display().to_string(),
             "--task",
-            "wait for the complete plan envelope",
+            "wait for the complete implementation envelope",
             "--allow-path",
             "factory.txt",
             "--check",
@@ -1667,12 +1672,12 @@ fn factory_run_rejects_duplicate_and_wrong_nonce_envelopes() {
     for (env_name, env_value, expected) in [
         (
             "HERDR_FACTORY_DUPLICATE_BLOCK",
-            "pi",
+            "codex",
             "exactly one factory envelope pair",
         ),
         (
             "HERDR_FACTORY_WRONG_NONCE",
-            "pi",
+            "codex",
             "nonce does not match its markers",
         ),
     ] {
@@ -1801,7 +1806,9 @@ fn factory_run_rejects_a_stale_codex_worker_before_any_phase() {
         ])
         .assert()
         .failure()
-        .stdout(predicate::str::contains("Codex worker HEAD is stale"));
+        .stdout(predicate::str::contains(
+            "implementation worker HEAD is stale",
+        ));
     let log = std::fs::read_to_string(fixture.log()).expect("log");
     assert_eq!(log.matches("agent prompt").count(), prompts_before);
 }
@@ -2144,6 +2151,11 @@ impl Fixture {
         let bin = home.path().join("bin");
         std::fs::create_dir_all(&root).expect("root");
         std::fs::create_dir_all(&bin).expect("bin");
+        std::fs::write(
+            home.path().join("factory-plan.json"),
+            r#"{"schema_version":1,"kind":"plan","nonce":"pi-test","summary":"test plan","steps":[{"id":"P1","objective":"exercise the bounded factory protocol","allow_paths":["factory.txt"]}]}"#,
+        )
+        .expect("factory plan");
         Self { home, root, bin }
     }
 
@@ -2162,6 +2174,14 @@ impl Fixture {
             (
                 "SHEPRD_STATE_DIR".into(),
                 self.home.path().join("plugin-state").display().to_string(),
+            ),
+            (
+                "SHEPRD_FACTORY_PLAN_FILE".into(),
+                self.home
+                    .path()
+                    .join("factory-plan.json")
+                    .display()
+                    .to_string(),
             ),
         ]
     }
@@ -2417,7 +2437,9 @@ case "$1 $2" in
 	        ;;
 	      *-codex-*)
 	        target="${{HERDR_FACTORY_CODEX_PATH:-factory.txt}}"
-	        printf '%s\n{{"schema_version":1,"kind":"implementation","nonce":"%s","summary":"implemented fixture","claimed_changed_paths":["%s"]}}\n%s\n' "$start" "$envelope_nonce" "$target" "$end"
+	        emit_implementation() {{ printf '%s\n{{"schema_version":1,"kind":"implementation","nonce":"%s","summary":"implemented fixture","claimed_changed_paths":["%s"]}}\n%s\n' "$start" "$envelope_nonce" "$target" "$end"; }}
+	        emit_implementation
+	        if [ "${{HERDR_FACTORY_DUPLICATE_BLOCK:-}}" = "codex" ]; then emit_implementation; fi
 	        ;;
 	      *-claude-*)
 	        printf '%s\n{{"schema_version":1,"kind":"review","nonce":"%s","reviewer":"claude","approved":true,"summary":"intent matches","findings":[]}}\n%s\n' "$start" "$envelope_nonce" "$end"

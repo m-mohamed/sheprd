@@ -38,7 +38,10 @@ Cleanup is equally explicit: preview first, typed confirmation or `--confirm`,
 path ownership and cleanliness checks, workspace close, clean checkout removal,
 branch preservation, and state archival.
 
-Factory runs are code-owned loops over bounded phases: Pi plans, Codex implements, Rust checks, and Claude/OpenCode review. No agent decides phase order or acceptance; the runner never integrates or silently cleans rejected work.
+Factory runs separate orchestration from execution safety. Pi supplies a typed
+plan. Codex implements, Rust checks, and Claude/OpenCode review. Sheprd decides
+acceptance from scope, checks, reviews, and repository state. The runner never
+integrates or silently cleans rejected work.
 
 ## Product surfaces
 

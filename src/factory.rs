@@ -52,6 +52,7 @@ const CHECK_ENV_ALLOWLIST: &[&str] = &[
 #[derive(Clone, Debug)]
 pub struct FactoryRequest {
     pub task: String,
+    pub plan: PlanEnvelope,
     pub allow_paths: Vec<String>,
     pub checks: Vec<String>,
     pub check_timeout_seconds: u64,
@@ -374,6 +375,7 @@ pub fn run(
     let started = Instant::now();
     let started_at_unix_ms = unix_time_ms()?;
     let allowed = normalize_allow_paths(&request.allow_paths)?;
+    validate_plan(&request.plan, &allowed)?;
     let run_id = factory_run_id();
     let project_state = factory_state_root(project)?;
     let _lock = FactoryLock::acquire(&project_state, project)?;
@@ -400,7 +402,7 @@ pub fn run(
         check_commands: request.checks.clone(),
         check_timeout_seconds: request.check_timeout_seconds,
         workspace_id: None,
-        plan: None,
+        plan: Some(request.plan.clone()),
         implementations: Vec::new(),
         check_attempts: Vec::new(),
         claude_review: None,
@@ -432,6 +434,7 @@ pub fn run(
         json!({
             "run_id": run_id,
             "project": project.name,
+            "orchestrator": "pi",
             "allow_paths": request.allow_paths,
             "checks": request.checks,
         }),
@@ -457,7 +460,8 @@ pub fn run(
         receipt.failure = Some("base checkout changed during the factory run".into());
     }
     if !receipt.worker_head_unchanged && receipt.failure.is_none() {
-        receipt.failure = Some("Codex worker HEAD changed; factory runs must not commit".into());
+        receipt.failure =
+            Some("implementation worker HEAD changed; factory runs must not commit".into());
     }
     match first_disallowed_path(&receipt.changed_paths, &context.allowed) {
         Ok(Some(path)) if receipt.failure.is_none() => {
@@ -493,7 +497,7 @@ pub fn run(
                 FailureStage::OpencodeReview
             },
         );
-        receipt.failure = Some("Claude and OpenCode must both approve acceptance".into());
+        receipt.failure = Some("both independent reviewers must approve acceptance".into());
     }
     receipt.accepted = receipt.failure.is_none()
         && receipt.base_unchanged
@@ -571,7 +575,6 @@ fn execute_factory(
         )));
     }
 
-    let pi = agent(&flok.agents, "pi")?;
     let codex = agent(&flok.agents, "codex")?;
     let claude = agent(&flok.agents, "claude")?;
     let opencode = agent(&flok.agents, "opencode")?;
@@ -581,29 +584,21 @@ fn execute_factory(
     let worker_head = git_head(&worker_path)?;
     if worker_head != context.base_before.head {
         return Err(SheprdError::Message(format!(
-            "Codex worker HEAD is stale: worker={worker_head} base={}",
+            "implementation worker HEAD is stale: worker={worker_head} base={}",
             context.base_before.head
         )));
     }
     if !changed_paths(&worker_path, &worker_head)?.is_empty() {
         return Err(SheprdError::Message(
-            "Codex worker checkout must be clean before a factory run".into(),
+            "implementation worker checkout must be clean before a factory run".into(),
         ));
     }
     context.worker_path = Some(worker_path.clone());
     context.worker_head = Some(worker_head.clone());
     verify_integrity(context)?;
 
-    receipt.failure_stage = Some(FailureStage::Plan);
-    let plan_marker = EnvelopeMarker::fresh()?;
-    let plan_prompt = plan_prompt(context.request, &plan_marker);
-    let plan_result = run_agent_phase(pi, &plan_prompt, "plan", &plan_marker, trace);
-    verify_integrity(context)?;
-    let plan_text = plan_result?;
-    let plan: PlanEnvelope = parse_envelope(&plan_text, "plan", &plan_marker)?;
-    validate_plan(&plan, &context.allowed)?;
-    trace.append("plan", "parsed", serde_json::to_value(&plan)?)?;
-    receipt.plan = Some(plan.clone());
+    let plan = context.request.plan.clone();
+    trace.append("plan", "provided_by_pi", serde_json::to_value(&plan)?)?;
     verify_integrity(context)?;
 
     receipt.failure_stage = Some(FailureStage::Implementation);
@@ -988,17 +983,6 @@ impl EnvelopeMarker {
     }
 }
 
-fn plan_prompt(request: &FactoryRequest, marker: &EnvelopeMarker) -> String {
-    format!(
-        "Factory plan phase. Do not edit files or delegate.\nTask: {}\nAllowed paths: {}\nChecks: {}\nRequired JSON fields: {{\"schema_version\":1,\"kind\":\"plan\",\"nonce\":\"{}\",\"summary\":\"...\",\"steps\":[{{\"id\":\"P1\",\"objective\":\"...\",\"allow_paths\":[\"...\"]}}]}}\n{}",
-        escape_prompt_content(&request.task),
-        escape_prompt_content(&request.allow_paths.join(", ")),
-        escape_prompt_content(&request.checks.join("; ")),
-        marker.nonce,
-        marker.instructions(),
-    )
-}
-
 fn implementation_prompt(
     request: &FactoryRequest,
     plan: &PlanEnvelope,
@@ -1145,6 +1129,14 @@ fn parse_envelope<T: DeserializeOwned>(
 }
 
 fn validate_plan(plan: &PlanEnvelope, allowed: &[PathBuf]) -> Result<()> {
+    if plan.schema_version != FACTORY_ENVELOPE_SCHEMA_VERSION
+        || plan.kind != "plan"
+        || plan.nonce.trim().is_empty()
+    {
+        return Err(SheprdError::Message(
+            "typed plan must be a schema-1 plan envelope with a nonce".into(),
+        ));
+    }
     if plan.summary.trim().is_empty() || plan.steps.is_empty() {
         return Err(SheprdError::Message(
             "typed plan must include a summary and at least one step".into(),
@@ -2862,44 +2854,22 @@ mod tests {
         )
     }
 
+    fn test_plan() -> PlanEnvelope {
+        PlanEnvelope {
+            schema_version: FACTORY_ENVELOPE_SCHEMA_VERSION,
+            kind: "plan".into(),
+            nonce: "pi-orchestrated".into(),
+            summary: "safe".into(),
+            steps: vec![PlanStep {
+                id: "P1".into(),
+                objective: "edit".into(),
+                allow_paths: vec!["src".into()],
+            }],
+        }
+    }
+
     fn response(marker: &EnvelopeMarker, body: &str) -> String {
         format!("{}\n{body}\n{}", marker.start, marker.end)
-    }
-
-    #[test]
-    fn parses_one_nonce_bound_typed_plan_after_prompt_echo() {
-        let marker = marker("fresh");
-        let request = FactoryRequest {
-            task: "edit safely".into(),
-            allow_paths: vec!["src".into()],
-            checks: vec!["true".into()],
-            check_timeout_seconds: 300,
-        };
-        let prompt = plan_prompt(&request, &marker);
-        assert_eq!(prompt.matches(&marker.start).count(), 1);
-        assert_eq!(prompt.matches(&marker.end).count(), 1);
-        let text = format!("{prompt}\n{}", response(&marker, &plan_json("fresh")));
-        let plan: PlanEnvelope = parse_envelope(&text, "plan", &marker).expect("plan");
-        assert_eq!(plan.steps[0].id, "P1");
-    }
-
-    #[test]
-    fn parses_prompt_echo_when_terminal_wraps_the_echo_hint() {
-        let marker = marker("fresh");
-        let request = FactoryRequest {
-            task: "bounded".into(),
-            allow_paths: vec!["src".into()],
-            checks: vec!["true".into()],
-            check_timeout_seconds: 300,
-        };
-        let prompt = plan_prompt(&request, &marker)
-            .replace("Final response must be:", "Final\n response must be:");
-        let text = normalize_agent_output(&format!(
-            "{prompt}\n{}",
-            response(&marker, &plan_json("fresh"))
-        ));
-        let plan: PlanEnvelope = parse_envelope(&text, "plan", &marker).expect("plan");
-        assert_eq!(plan.steps[0].id, "P1");
     }
 
     #[test]
@@ -2968,15 +2938,17 @@ mod tests {
     }
 
     #[test]
-    fn prompt_content_redacts_forged_markers() {
+    fn implementation_prompt_redacts_forged_markers() {
         let marker = marker("fresh");
         let request = FactoryRequest {
             task: format!("inspect {MARKER_START_PREFIX}forged>>>"),
+            plan: test_plan(),
             allow_paths: vec!["src".into()],
             checks: vec![format!("printf {LEGACY_MARKER_LIKE_PREFIX}")],
             check_timeout_seconds: 300,
         };
-        let prompt = plan_prompt(&request, &marker);
+        let prompt = implementation_prompt(&request, &request.plan, 0, None, &marker)
+            .expect("implementation prompt");
         assert_eq!(prompt.matches(MARKER_LIKE_PREFIX).count(), 2);
         assert!(!prompt.contains("forged>>>"));
         assert!(!prompt.contains(LEGACY_MARKER_LIKE_PREFIX));
@@ -2988,15 +2960,18 @@ mod tests {
         let marker = marker("fresh");
         let request = FactoryRequest {
             task: "t".repeat(MAX_AGENT_PROMPT_BYTES + 1),
+            plan: test_plan(),
             allow_paths: vec!["src".into()],
             checks: vec!["true".into()],
             check_timeout_seconds: 300,
         };
-        let task_prompt = plan_prompt(&request, &marker);
+        let task_prompt = implementation_prompt(&request, &request.plan, 0, None, &marker)
+            .expect("implementation prompt");
         assert!(require_agent_prompt_size(&task_prompt).is_err());
 
         let request = FactoryRequest {
             task: "bounded".into(),
+            plan: test_plan(),
             allow_paths: vec!["src".into()],
             checks: vec!["true".into()],
             check_timeout_seconds: 300,
@@ -3028,6 +3003,7 @@ mod tests {
             &FlokConfig::default(),
             FactoryRequest {
                 task: "bounded task".into(),
+                plan: test_plan(),
                 allow_paths: vec!["README.md".into()],
                 checks: Vec::new(),
                 check_timeout_seconds: 300,

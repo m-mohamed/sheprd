@@ -1,5 +1,6 @@
 use crate::recipe::{Agent, RecipeName};
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 #[derive(Clone, Debug, Parser)]
 #[command(name = "sheprd")]
@@ -97,7 +98,7 @@ pub enum Command {
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum FactoryCommand {
-    /// Plan, implement, check, review, and emit an acceptance receipt.
+    /// Execute a Pi-authored plan, check it, review it, and emit an acceptance receipt.
     Run {
         /// Project name or git checkout path. Defaults to the active Herdr project.
         project: Option<String>,
@@ -106,7 +107,11 @@ pub enum FactoryCommand {
         #[arg(long)]
         task: String,
 
-        /// Repository-relative file or directory the Codex worker may change.
+        /// Typed JSON plan produced by the Pi orchestrator.
+        #[arg(long = "plan-file")]
+        plan_file: Option<PathBuf>,
+
+        /// Repository-relative file or directory the implementation worker may change.
         #[arg(long = "allow-path", required = true)]
         allow_paths: Vec<String>,
 

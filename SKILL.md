@@ -60,12 +60,14 @@ Use the deterministic factory when the task has explicit paths and checks:
 
 ```bash
 target/release/sheprd factory run <project> --task '<bounded task>' \
-  --allow-path <repo-relative-path> --check '<check command>' --json
+  --plan-file <pi-plan.json> --allow-path <repo-relative-path> \
+  --check '<check command>' --json
 ```
 
-The Rust runner owns phase order and parses one fresh nonce-bound, sentinel-delimited
-typed JSON envelope per agent turn. Pi plans; Codex implements and receives no more than
-two check-driven correction turns; Claude reviews intent; OpenCode reviews
+Pi owns orchestration policy and supplies the typed plan. The Rust runner owns
+execution safety and parses one fresh nonce-bound, sentinel-delimited typed JSON
+envelope per worker turn. Codex implements and receives no more than two
+check-driven correction turns; Claude reviews intent; OpenCode reviews
 adversarially. Rust runs checks without an agent, using `/bin/sh -c`, a bounded
 timeout, and source-state mutation detection. Agent-owned ignored mutations are
 rejected; check-owned ignored outputs are excluded from the reviewed patch.

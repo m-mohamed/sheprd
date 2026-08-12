@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changed
+
+- Make Pi the orchestration-policy owner. `sheprd factory run` now requires a
+  typed `--plan-file` and no longer prompts Pi to plan. Sheprd retains
+  worktree isolation, bounded implementation corrections, deterministic checks,
+  independent reviews, scope enforcement, traces, and acceptance receipts.
+
 ## v0.4.2 - 2026-08-09
 
 ### Fixed

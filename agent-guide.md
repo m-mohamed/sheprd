@@ -70,7 +70,10 @@ herdr agent read <name> --source recent --lines 120 --format text
 Before reporting completion, inspect repository state and test receipts. Agent
 messages are claims, not merge proof.
 
-For an explicit code-owned run, use `sheprd factory run` with a bounded task, repository-relative `--allow-path` values, and `--check` commands. The command preserves rejected work and returns trace and receipt paths; it never integrates the Codex worker branch.
+For an explicit receipt-backed run, Pi first creates a typed plan. Then use
+`sheprd factory run` with `--plan-file`, a bounded task, repository-relative
+`--allow-path` values, and `--check` commands. The command preserves rejected
+work and returns trace and receipt paths. It never integrates the worker branch.
 
 ## Clean up safely
 
