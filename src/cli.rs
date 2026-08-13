@@ -129,4 +129,14 @@ pub enum FactoryCommand {
         /// Project name or git checkout path. Defaults to the active Herdr project.
         project: Option<String>,
     },
+
+    /// Export recent validated receipts as bounded evaluation cases without changing state.
+    Cases {
+        /// Project name or git checkout path. Defaults to the active Herdr project.
+        project: Option<String>,
+
+        /// Maximum completed runs to return, newest first.
+        #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u16).range(1..=100))]
+        limit: u16,
+    },
 }

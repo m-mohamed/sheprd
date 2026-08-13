@@ -1128,6 +1128,43 @@ fn factory_stats_aggregates_modern_legacy_and_authoritative_cost_receipts() {
 }
 
 #[test]
+fn factory_cases_exports_bounded_validated_receipt_evidence() {
+    let fixture = factory_fixture();
+    let repo = fixture.real_git_repo("sample-app");
+    fixture.fake_herdr(None);
+    run_accepted_factory(&fixture, &repo);
+
+    let cases = factory_cases_json(&fixture, &repo, 1);
+    assert_eq!(cases["schema_version"], 1);
+    assert_eq!(cases["project"], "sample-app");
+    assert_eq!(cases["total_completed_runs"], 1);
+    assert_eq!(cases["incomplete_runs"], 0);
+    assert_eq!(cases["limit"], 1);
+    assert_eq!(cases["cases"].as_array().expect("case array").len(), 1);
+    assert_eq!(cases["cases"][0]["task"], "create stats fixture");
+    assert_eq!(cases["cases"][0]["accepted"], true);
+    assert_eq!(cases["cases"][0]["review_outcomes"]["claude"], "approved");
+    assert_eq!(cases["cases"][0]["review_outcomes"]["opencode"], "approved");
+    assert!(cases["cases"][0].get("implementations").is_none());
+    assert!(cases["cases"][0].get("claude_review").is_none());
+
+    Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args([
+            "factory",
+            "cases",
+            &repo.display().to_string(),
+            "--limit",
+            "1",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("factory cases: sample-app"))
+        .stdout(predicate::str::contains("showing 1, newest first"));
+}
+
+#[test]
 fn factory_run_and_stats_do_not_advertise_rollback_without_a_real_operation() {
     let fixture = factory_fixture();
     let repo = fixture.real_git_repo("sample-app");
@@ -2051,6 +2088,28 @@ fn factory_stats_json(fixture: &Fixture, repo: &std::path::Path) -> serde_json::
         String::from_utf8_lossy(&output.stderr)
     );
     serde_json::from_slice(&output.stdout).expect("factory stats json")
+}
+
+fn factory_cases_json(fixture: &Fixture, repo: &std::path::Path, limit: u16) -> serde_json::Value {
+    let output = Command::cargo_bin("sheprd")
+        .expect("binary")
+        .envs(fixture.env())
+        .args([
+            "factory",
+            "cases",
+            &repo.display().to_string(),
+            "--limit",
+            &limit.to_string(),
+            "--json",
+        ])
+        .output()
+        .expect("factory cases");
+    assert!(
+        output.status.success(),
+        "factory cases failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("factory cases json")
 }
 
 fn assert_factory_stats_fails(fixture: &Fixture, repo: &std::path::Path, message: &str) {

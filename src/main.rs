@@ -82,6 +82,9 @@ fn run(cli: Cli) -> Result<ExitCode> {
             FactoryCommand::Stats { project } => {
                 factory_stats(&config, project.as_deref(), cli.json)
             }
+            FactoryCommand::Cases { project, limit } => {
+                factory_cases(&config, project.as_deref(), usize::from(limit), cli.json)
+            }
         },
         Command::Cleanup { project, confirm } => {
             cleanup(&config, project.as_deref(), confirm, cli.json)
@@ -97,6 +100,46 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::Doctor => doctor(&config, cli.json),
         Command::ShowConfig => show_config(&config, cli.json),
     }
+}
+
+fn factory_cases(
+    config: &Config,
+    selector: Option<&str>,
+    limit: usize,
+    json: bool,
+) -> Result<ExitCode> {
+    let project = match selector {
+        Some(selector) => project::resolve(config, selector)?,
+        None => project::resolve_active(config)?,
+    };
+    let cases = factory::cases(&project, limit)?;
+    if json {
+        print_json(&cases)?;
+    } else {
+        println!("factory cases: {}", cases.project);
+        println!(
+            "completed runs: {} (showing {}, newest first)",
+            cases.total_completed_runs,
+            cases.cases.len()
+        );
+        println!("incomplete runs: {}", cases.incomplete_runs);
+        for case in &cases.cases {
+            let stage = case.failure_stage.as_deref().unwrap_or("none");
+            println!(
+                "{}: {} (stage: {}, checks: {}, turns: {})",
+                case.run_id,
+                if case.accepted {
+                    "accepted"
+                } else {
+                    "rejected"
+                },
+                stage,
+                case.check_attempt_count,
+                case.implementation_turn_count
+            );
+        }
+    }
+    Ok(ExitCode::SUCCESS)
 }
 
 fn factory_stats(config: &Config, selector: Option<&str>, json: bool) -> Result<ExitCode> {

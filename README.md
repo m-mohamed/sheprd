@@ -141,6 +141,7 @@ target/release/sheprd factory run my-app --task "add retry metrics" \
   --plan-file plan.json --allow-path src/metrics.rs \
   --check "cargo test metrics" --json
 target/release/sheprd factory stats my-app --json
+target/release/sheprd factory cases my-app --limit 20 --json
 ```
 
 Pi owns orchestration policy and supplies the typed JSON plan. Sheprd owns the
@@ -162,6 +163,11 @@ fail closed instead of skipping malformed, incomplete, symlinked,
 permission-unsafe, inconsistent, or concurrently changing state. A stable lock
 whose PID is provably dead is treated as stale without being removed; live,
 malformed, unsafe, changing, or unverifiable locks block the read.
+
+`factory cases` exports a bounded, newest-first set of validated receipt cases
+for project-specific evaluation. It includes task and outcome evidence but not
+full agent transcripts. It uses the same private-state and stable-read checks as
+`factory stats` and never creates or repairs state.
 
 ## Configuration
 

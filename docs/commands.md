@@ -175,6 +175,22 @@ regular `factory.lock` with a stable, valid PID is checked read-only: a live PID
 blocks statistics, a PID proven dead is treated as stale without deleting the
 lock, and malformed, symlinked, unsafe, changing, or unverifiable locks fail.
 
+## `factory cases`
+
+```bash
+sheprd factory cases my-app --limit 20 --json
+```
+
+This command uses the same fail-closed, stable receipt reader as `factory
+stats`. It returns recent completed runs in newest-first order. Each bounded
+case includes the task, allowed paths, checks, changed paths, acceptance,
+failure stage, review outcomes, runtime when available, and attempt counts. It
+does not return full agent envelopes or trace text.
+
+Use these cases as project-specific evaluation input. Do not treat an exported
+case as a replay result. A benchmark runner must still define the environment,
+candidate configuration, judge, and acceptance threshold.
+
 ## `cleanup`
 
 Preview is the default:

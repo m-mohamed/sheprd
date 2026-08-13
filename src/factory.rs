@@ -17,6 +17,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 const FACTORY_ENVELOPE_SCHEMA_VERSION: u32 = 1;
 const FACTORY_RECEIPT_SCHEMA_VERSION: u32 = 2;
 const FACTORY_STATS_SCHEMA_VERSION: u32 = 1;
+const FACTORY_CASES_SCHEMA_VERSION: u32 = 1;
 const MAX_RECEIPT_BYTES: u64 = 2 * 1024 * 1024;
 const MARKER_START_PREFIX: &str = "<<<SHEPRD_FACTORY_JSON_START:";
 const MARKER_END_PREFIX: &str = "<<<SHEPRD_FACTORY_JSON_END:";
@@ -288,6 +289,31 @@ pub struct FactoryStats {
     pub cost: CostStats,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct FactoryCase {
+    pub run_id: String,
+    pub task: String,
+    pub allow_paths: Vec<String>,
+    pub check_commands: Vec<String>,
+    pub changed_paths: Vec<String>,
+    pub accepted: bool,
+    pub failure_stage: Option<String>,
+    pub review_outcomes: ReviewOutcomes,
+    pub elapsed_ms: Option<u64>,
+    pub implementation_turn_count: usize,
+    pub check_attempt_count: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct FactoryCases {
+    pub schema_version: u32,
+    pub project: String,
+    pub total_completed_runs: u64,
+    pub incomplete_runs: u64,
+    pub limit: usize,
+    pub cases: Vec<FactoryCase>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct GitSnapshot {
     head: String,
@@ -541,17 +567,17 @@ pub fn run(
 }
 
 fn review_outcomes(receipt: &FactoryReceipt) -> ReviewOutcomes {
-    fn outcome(review: Option<&ReviewEnvelope>) -> ReviewOutcome {
-        match review {
-            Some(review) if review.approved => ReviewOutcome::Approved,
-            Some(_) => ReviewOutcome::Rejected,
-            None => ReviewOutcome::NotReached,
-        }
-    }
-
     ReviewOutcomes {
-        claude: outcome(receipt.claude_review.as_ref()),
-        opencode: outcome(receipt.opencode_review.as_ref()),
+        claude: review_outcome(receipt.claude_review.as_ref()),
+        opencode: review_outcome(receipt.opencode_review.as_ref()),
+    }
+}
+
+fn review_outcome(review: Option<&ReviewEnvelope>) -> ReviewOutcome {
+    match review {
+        Some(review) if review.approved => ReviewOutcome::Approved,
+        Some(_) => ReviewOutcome::Rejected,
+        None => ReviewOutcome::NotReached,
     }
 }
 
@@ -2010,7 +2036,13 @@ struct LegacyFactoryReceipt {
 }
 
 struct ObservedRun {
+    run_id: String,
+    task: String,
+    allow_paths: Vec<String>,
+    check_commands: Vec<String>,
+    changed_paths: Vec<String>,
     accepted: bool,
+    review_outcomes: ReviewOutcomes,
     implementation_turn_count: usize,
     check_attempt_count: usize,
     failure_stage: Option<String>,
@@ -2022,6 +2054,44 @@ pub fn stats(project: &Project) -> Result<FactoryStats> {
     let project_state = factory_project_state_path(project)?;
     let (runs, incomplete_runs) = read_stable_receipts(&project_state, project)?;
     aggregate_stats(project, runs, incomplete_runs)
+}
+
+pub fn cases(project: &Project, limit: usize) -> Result<FactoryCases> {
+    if limit == 0 {
+        return Err(SheprdError::Message(
+            "factory case limit must be greater than zero".into(),
+        ));
+    }
+    let project_state = factory_project_state_path(project)?;
+    let (mut runs, incomplete_runs) = read_stable_receipts(&project_state, project)?;
+    let total_completed_runs = u64::try_from(runs.len())
+        .map_err(|_| SheprdError::Message("factory run count overflow".into()))?;
+    runs.sort_by(|left, right| right.run_id.cmp(&left.run_id));
+    let cases = runs
+        .into_iter()
+        .take(limit)
+        .map(|run| FactoryCase {
+            run_id: run.run_id,
+            task: run.task,
+            allow_paths: run.allow_paths,
+            check_commands: run.check_commands,
+            changed_paths: run.changed_paths,
+            accepted: run.accepted,
+            failure_stage: run.failure_stage,
+            review_outcomes: run.review_outcomes,
+            elapsed_ms: run.elapsed_ms,
+            implementation_turn_count: run.implementation_turn_count,
+            check_attempt_count: run.check_attempt_count,
+        })
+        .collect();
+    Ok(FactoryCases {
+        schema_version: FACTORY_CASES_SCHEMA_VERSION,
+        project: project.name.clone(),
+        total_completed_runs,
+        incomplete_runs,
+        limit,
+        cases,
+    })
 }
 
 fn aggregate_stats(
@@ -2476,7 +2546,16 @@ fn parse_observed_receipt(
             let receipt: LegacyFactoryReceipt = serde_json::from_value(value)?;
             validate_legacy_receipt(&receipt, project, run_id, receipt_path, trace_path)?;
             Ok(ObservedRun {
+                run_id: receipt.run_id.clone(),
+                task: receipt.task.clone(),
+                allow_paths: receipt.allow_paths.clone(),
+                check_commands: receipt.check_commands.clone(),
+                changed_paths: receipt.changed_paths.clone(),
                 accepted: receipt.accepted,
+                review_outcomes: ReviewOutcomes {
+                    claude: review_outcome(receipt.claude_review.as_ref()),
+                    opencode: review_outcome(receipt.opencode_review.as_ref()),
+                },
                 implementation_turn_count: receipt.implementations.len(),
                 check_attempt_count: receipt.check_attempts.len(),
                 failure_stage: (!receipt.accepted).then(|| "legacy_unknown".to_string()),
@@ -2488,7 +2567,13 @@ fn parse_observed_receipt(
             let receipt: FactoryReceipt = serde_json::from_value(value)?;
             validate_receipt(&receipt, project, run_id, receipt_path, trace_path)?;
             Ok(ObservedRun {
+                run_id: receipt.run_id.clone(),
+                task: receipt.task.clone(),
+                allow_paths: receipt.allow_paths.clone(),
+                check_commands: receipt.check_commands.clone(),
+                changed_paths: receipt.changed_paths.clone(),
                 accepted: receipt.accepted,
+                review_outcomes: receipt.review_outcomes.clone(),
                 implementation_turn_count: receipt.implementation_turn_count,
                 check_attempt_count: receipt.check_attempt_count,
                 failure_stage: receipt.failure_stage.map(|stage| stage.label().to_string()),
