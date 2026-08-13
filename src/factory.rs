@@ -27,6 +27,7 @@ const MAX_CORRECTION_TURNS: usize = 2;
 const MAX_CAPTURE_BYTES: usize = 8 * 1024;
 const MAX_REVIEW_PATCH_BYTES: usize = 48 * 1024;
 const MAX_AGENT_PROMPT_BYTES: usize = 60 * 1024;
+const MAX_SELECTED_SKILLS: usize = 3;
 const MAX_GIT_ADMIN_ENTRY_BYTES: usize = 8 * 1024;
 const MAX_IGNORED_ENTRIES: usize = 100_000;
 const MAX_IGNORED_ENUM_BYTES: usize = 16 * 1024 * 1024;
@@ -67,11 +68,40 @@ pub struct PlanStep {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct TaskReference {
+    pub id: String,
+    pub number: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SkillSelectionMode {
+    #[default]
+    None,
+    Router,
+    Explicit,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct SkillReference {
+    pub name: String,
+    pub version: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PlanEnvelope {
     pub schema_version: u32,
     pub kind: String,
     pub nonce: String,
     pub summary: String,
+    #[serde(default)]
+    pub task_reference: Option<TaskReference>,
+    #[serde(default)]
+    pub skill_selection_mode: SkillSelectionMode,
+    #[serde(default)]
+    pub selected_skills: Vec<SkillReference>,
     pub steps: Vec<PlanStep>,
 }
 
@@ -293,6 +323,9 @@ pub struct FactoryStats {
 pub struct FactoryCase {
     pub run_id: String,
     pub task: String,
+    pub task_reference: Option<TaskReference>,
+    pub skill_selection_mode: SkillSelectionMode,
+    pub selected_skills: Vec<SkillReference>,
     pub allow_paths: Vec<String>,
     pub check_commands: Vec<String>,
     pub changed_paths: Vec<String>,
@@ -461,6 +494,9 @@ pub fn run(
             "run_id": run_id,
             "project": project.name,
             "orchestrator": "pi",
+            "task_reference": &request.plan.task_reference,
+            "skill_selection_mode": request.plan.skill_selection_mode,
+            "selected_skills": &request.plan.selected_skills,
             "allow_paths": request.allow_paths,
             "checks": request.checks,
         }),
@@ -1168,6 +1204,43 @@ fn validate_plan(plan: &PlanEnvelope, allowed: &[PathBuf]) -> Result<()> {
             "typed plan must include a summary and at least one step".into(),
         ));
     }
+    if let Some(task) = &plan.task_reference {
+        if task.id.trim().is_empty() || task.number == 0 {
+            return Err(SheprdError::Message(
+                "typed plan task reference requires an id and positive number".into(),
+            ));
+        }
+    }
+    if plan.selected_skills.len() > MAX_SELECTED_SKILLS {
+        return Err(SheprdError::Message(format!(
+            "typed plan may select at most {MAX_SELECTED_SKILLS} skills"
+        )));
+    }
+    if plan.skill_selection_mode == SkillSelectionMode::None && !plan.selected_skills.is_empty() {
+        return Err(SheprdError::Message(
+            "typed plan cannot select skills when selection mode is none".into(),
+        ));
+    }
+    if plan.skill_selection_mode == SkillSelectionMode::Explicit && plan.selected_skills.is_empty()
+    {
+        return Err(SheprdError::Message(
+            "typed plan explicit skill selection requires at least one skill".into(),
+        ));
+    }
+    let mut skill_names = BTreeSet::new();
+    for skill in &plan.selected_skills {
+        if !valid_skill_name(&skill.name) || !valid_skill_version(&skill.version) {
+            return Err(SheprdError::Message(
+                "typed plan skills require valid names and versions".into(),
+            ));
+        }
+        if !skill_names.insert(skill.name.as_str()) {
+            return Err(SheprdError::Message(format!(
+                "typed plan contains duplicate skill: {}",
+                skill.name
+            )));
+        }
+    }
     for step in &plan.steps {
         if step.id.trim().is_empty() || step.objective.trim().is_empty() {
             return Err(SheprdError::Message(
@@ -1186,6 +1259,26 @@ fn validate_plan(plan: &PlanEnvelope, allowed: &[PathBuf]) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn valid_skill_name(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 64
+        && bytes[0].is_ascii_lowercase()
+        && bytes[bytes.len() - 1].is_ascii_alphanumeric()
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'-')
+        && !value.contains("--")
+}
+
+fn valid_skill_version(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'+' | b'_'))
 }
 
 fn validate_reviewer(review: &ReviewEnvelope, expected: &str) -> Result<()> {
@@ -2038,6 +2131,9 @@ struct LegacyFactoryReceipt {
 struct ObservedRun {
     run_id: String,
     task: String,
+    task_reference: Option<TaskReference>,
+    skill_selection_mode: SkillSelectionMode,
+    selected_skills: Vec<SkillReference>,
     allow_paths: Vec<String>,
     check_commands: Vec<String>,
     changed_paths: Vec<String>,
@@ -2073,6 +2169,9 @@ pub fn cases(project: &Project, limit: usize) -> Result<FactoryCases> {
         .map(|run| FactoryCase {
             run_id: run.run_id,
             task: run.task,
+            task_reference: run.task_reference,
+            skill_selection_mode: run.skill_selection_mode,
+            selected_skills: run.selected_skills,
             allow_paths: run.allow_paths,
             check_commands: run.check_commands,
             changed_paths: run.changed_paths,
@@ -2548,6 +2647,18 @@ fn parse_observed_receipt(
             Ok(ObservedRun {
                 run_id: receipt.run_id.clone(),
                 task: receipt.task.clone(),
+                task_reference: receipt
+                    .plan
+                    .as_ref()
+                    .and_then(|plan| plan.task_reference.clone()),
+                skill_selection_mode: receipt
+                    .plan
+                    .as_ref()
+                    .map_or(SkillSelectionMode::None, |plan| plan.skill_selection_mode),
+                selected_skills: receipt
+                    .plan
+                    .as_ref()
+                    .map_or_else(Vec::new, |plan| plan.selected_skills.clone()),
                 allow_paths: receipt.allow_paths.clone(),
                 check_commands: receipt.check_commands.clone(),
                 changed_paths: receipt.changed_paths.clone(),
@@ -2569,6 +2680,18 @@ fn parse_observed_receipt(
             Ok(ObservedRun {
                 run_id: receipt.run_id.clone(),
                 task: receipt.task.clone(),
+                task_reference: receipt
+                    .plan
+                    .as_ref()
+                    .and_then(|plan| plan.task_reference.clone()),
+                skill_selection_mode: receipt
+                    .plan
+                    .as_ref()
+                    .map_or(SkillSelectionMode::None, |plan| plan.skill_selection_mode),
+                selected_skills: receipt
+                    .plan
+                    .as_ref()
+                    .map_or_else(Vec::new, |plan| plan.selected_skills.clone()),
                 allow_paths: receipt.allow_paths.clone(),
                 check_commands: receipt.check_commands.clone(),
                 changed_paths: receipt.changed_paths.clone(),
@@ -2599,6 +2722,7 @@ fn validate_legacy_receipt(
             "legacy factory receipt schema is inconsistent".into(),
         ));
     }
+    validate_embedded_plan(receipt.plan.as_ref(), &receipt.allow_paths)?;
     validate_receipt_identity(
         &receipt.run_id,
         &receipt.project,
@@ -2652,6 +2776,7 @@ fn validate_receipt(
             ))
         }
     }
+    validate_embedded_plan(receipt.plan.as_ref(), &receipt.allow_paths)?;
     validate_receipt_identity(
         &receipt.run_id,
         &receipt.project,
@@ -2672,6 +2797,14 @@ fn validate_receipt(
         receipt.claude_review.as_ref(),
         receipt.opencode_review.as_ref(),
     )
+}
+
+fn validate_embedded_plan(plan: Option<&PlanEnvelope>, allow_paths: &[String]) -> Result<()> {
+    if let Some(plan) = plan {
+        let allowed = normalize_allow_paths(allow_paths)?;
+        validate_plan(plan, &allowed)?;
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2945,6 +3078,15 @@ mod tests {
             kind: "plan".into(),
             nonce: "pi-orchestrated".into(),
             summary: "safe".into(),
+            task_reference: Some(TaskReference {
+                id: "test".into(),
+                number: 1,
+            }),
+            skill_selection_mode: SkillSelectionMode::Router,
+            selected_skills: vec![SkillReference {
+                name: "loop-engineering".into(),
+                version: "1.0.0".into(),
+            }],
             steps: vec![PlanStep {
                 id: "P1".into(),
                 objective: "edit".into(),
@@ -3095,6 +3237,9 @@ mod tests {
             kind: "plan".into(),
             nonce: "plan-nonce".into(),
             summary: "p".repeat(MAX_AGENT_PROMPT_BYTES + 1),
+            task_reference: None,
+            skill_selection_mode: SkillSelectionMode::None,
+            selected_skills: Vec::new(),
             steps: vec![PlanStep {
                 id: "P1".into(),
                 objective: "bounded".into(),
@@ -3103,6 +3248,32 @@ mod tests {
         };
         let plan_prompt = implementation_prompt(&request, &plan, 0, None, &marker).expect("prompt");
         assert!(require_agent_prompt_size(&plan_prompt).is_err());
+    }
+
+    #[test]
+    fn validates_task_and_skill_attribution() {
+        let allowed = normalize_allow_paths(&["src".into()]).expect("allow paths");
+        validate_plan(&test_plan(), &allowed).expect("valid attributed plan");
+
+        let mut invalid = test_plan();
+        invalid
+            .selected_skills
+            .push(invalid.selected_skills[0].clone());
+        let duplicate = validate_plan(&invalid, &allowed).expect_err("duplicate skill");
+        assert!(duplicate.to_string().contains("duplicate skill"));
+
+        let mut invalid = test_plan();
+        invalid.skill_selection_mode = SkillSelectionMode::None;
+        let inconsistent = validate_plan(&invalid, &allowed).expect_err("none with skills");
+        assert!(inconsistent.to_string().contains("selection mode is none"));
+
+        let mut invalid = test_plan();
+        invalid.task_reference = Some(TaskReference {
+            id: String::new(),
+            number: 0,
+        });
+        let task = validate_plan(&invalid, &allowed).expect_err("invalid task reference");
+        assert!(task.to_string().contains("task reference"));
     }
 
     #[test]

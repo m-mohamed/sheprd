@@ -149,7 +149,9 @@ bounded execution protocol: Codex implementation, caller-declared checks, at
 most two Codex corrections, Claude intent review, OpenCode adversarial review,
 and the final receipt. Worker turns use fresh nonce-bound JSON envelopes and
 observed post-prompt completion. Acceptance requires passing checks and approval
-from both reviewers.
+from both reviewers. The plan and receipt preserve the matched Tuxedo task ID
+and line number plus Pi's skill-selection mode and up to three versioned skills.
+`factory cases` exports the same attribution for project-specific evaluation.
 
 The factory refuses a stale or dirty Codex checkout, commits, base-checkout drift, agent-authored ignored payloads, and changes outside `--allow-path`. Checks run through `/bin/sh -c` with a documented environment allowlist and a 300-second default timeout, configurable with `--check-timeout-seconds`; timeouts kill the check process group, and any check that mutates reviewed source state fails the run. Check-owned ignored build outputs are allowed but excluded from the reviewed patch, while ignored-state drift is still included in the immutable review-window snapshot. It never merges or pushes. Every attempt writes private append-only `trace.jsonl` and final `receipt.json` files below the stable Sheprd state root; rejected runs return a non-zero exit status and preserve all worker changes for inspection.
 

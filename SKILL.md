@@ -71,6 +71,9 @@ check-driven correction turns; Claude reviews intent; OpenCode reviews
 adversarially. Rust runs checks without an agent, using `/bin/sh -c`, a bounded
 timeout, and source-state mutation detection. Agent-owned ignored mutations are
 rejected; check-owned ignored outputs are excluded from the reviewed patch.
+The Pi plan records the exact Tuxedo task reference and zero to three versioned
+skills with `none`, `router`, or `explicit` selection mode. Sheprd preserves
+that attribution in receipts and case exports; it does not select the skills.
 Acceptance is false unless the checks pass, both reviews approve, the base
 checkout and worker HEAD remain unchanged, and every actual changed path is
 allowed. Never treat a rejected receipt as an integration result; inspect the

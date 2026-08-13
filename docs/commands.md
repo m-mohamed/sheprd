@@ -130,7 +130,9 @@ append-only `trace.jsonl` plus an atomic `receipt.json` under
 includes a version plus started/finished Unix-millisecond timestamps, monotonic
 elapsed milliseconds, implementation and check-attempt counts, envelopes,
 actual paths, integrity verdicts, explicit review and acceptance outcomes,
-failure stage, failure reason, cost availability, and both state paths. Factory state
+failure stage, failure reason, cost availability, the Tuxedo task reference,
+Pi's skill-selection mode, up to three versioned skill references, and both
+state paths. Factory state
 directories are owner-only; trace, receipt, temporary, and lock files are mode
 `0600` on Unix. Review patches are capped at 48 KiB and every agent prompt is
 capped at 60 KiB before Herdr execution. Workflow code uses the agents already
@@ -183,9 +185,10 @@ sheprd factory cases my-app --limit 20 --json
 
 This command uses the same fail-closed, stable receipt reader as `factory
 stats`. It returns recent completed runs in newest-first order. Each bounded
-case includes the task, allowed paths, checks, changed paths, acceptance,
-failure stage, review outcomes, runtime when available, and attempt counts. It
-does not return full agent envelopes or trace text.
+case includes the task and task reference, selected skills, allowed paths,
+checks, changed paths, acceptance, failure stage, review outcomes, runtime when
+available, and attempt counts. It does not return full agent envelopes or trace
+text.
 
 Use these cases as project-specific evaluation input. Do not treat an exported
 case as a replay result. A benchmark runner must still define the environment,

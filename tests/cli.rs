@@ -1142,6 +1142,13 @@ fn factory_cases_exports_bounded_validated_receipt_evidence() {
     assert_eq!(cases["limit"], 1);
     assert_eq!(cases["cases"].as_array().expect("case array").len(), 1);
     assert_eq!(cases["cases"][0]["task"], "create stats fixture");
+    assert_eq!(cases["cases"][0]["task_reference"]["id"], "sample-app");
+    assert_eq!(cases["cases"][0]["task_reference"]["number"], 1);
+    assert_eq!(cases["cases"][0]["skill_selection_mode"], "router");
+    assert_eq!(
+        cases["cases"][0]["selected_skills"],
+        serde_json::json!([{"name": "loop-engineering", "version": "1.0.0"}])
+    );
     assert_eq!(cases["cases"][0]["accepted"], true);
     assert_eq!(cases["cases"][0]["review_outcomes"]["claude"], "approved");
     assert_eq!(cases["cases"][0]["review_outcomes"]["opencode"], "approved");
@@ -2217,7 +2224,7 @@ impl Fixture {
         std::fs::create_dir_all(&bin).expect("bin");
         std::fs::write(
             home.path().join("factory-plan.json"),
-            r#"{"schema_version":1,"kind":"plan","nonce":"pi-test","summary":"test plan","steps":[{"id":"P1","objective":"exercise the bounded factory protocol","allow_paths":["factory.txt"]}]}"#,
+            r#"{"schema_version":1,"kind":"plan","nonce":"pi-test","summary":"test plan","task_reference":{"id":"sample-app","number":1},"skill_selection_mode":"router","selected_skills":[{"name":"loop-engineering","version":"1.0.0"}],"steps":[{"id":"P1","objective":"exercise the bounded factory protocol","allow_paths":["factory.txt"]}]}"#,
         )
         .expect("factory plan");
         Self { home, root, bin }

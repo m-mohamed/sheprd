@@ -14,6 +14,8 @@
 - Add read-only `sheprd factory cases [project]` output. It exports a bounded,
   newest-first set of validated receipt cases for project-specific evaluation
   without exposing full agent transcripts or changing factory state.
+- Preserve the exact Tuxedo task reference and Pi's validated, versioned skill
+  selection in factory plans, traces, receipts, and bounded case exports.
 
 ## v0.4.2 - 2026-08-09
 
