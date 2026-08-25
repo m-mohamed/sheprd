@@ -1,14 +1,13 @@
 mod cli;
 mod config;
 mod error;
-mod factory;
 mod herdr;
 mod project;
 mod recipe;
 
 use clap::{CommandFactory, Parser};
-use cli::{Cli, Command, FactoryCommand};
-use config::{Config, FlokConfig};
+use cli::{Cli, Command};
+use config::Config;
 use error::{Result, SheprdError};
 use recipe::{Agent, Recipe, RecipeName};
 use serde::Serialize;
@@ -60,32 +59,6 @@ fn run(cli: Cli) -> Result<ExitCode> {
     }
 
     match command {
-        Command::Flok { project } => flok(&config, project.as_deref(), cli.json),
-        Command::Factory { command } => match command {
-            FactoryCommand::Run {
-                project,
-                task,
-                allow_paths,
-                checks,
-                check_timeout_seconds,
-            } => factory_run(
-                &config,
-                project.as_deref(),
-                task,
-                allow_paths,
-                checks,
-                check_timeout_seconds,
-                cli.json,
-            ),
-            FactoryCommand::Stats { project } => {
-                factory_stats(&config, project.as_deref(), cli.json)
-            }
-        },
-        Command::Cleanup { project, confirm } => {
-            cleanup(&config, project.as_deref(), confirm, cli.json)
-        }
-        Command::CleanupPrompt => cleanup_prompt(&config),
-        Command::Pick => pick(&config, cli.json),
         Command::Init { .. } => unreachable!("init returns before config load"),
         Command::List => list(&config, cli.json),
         Command::Connect { project, recipe } => {
@@ -95,269 +68,6 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::Doctor => doctor(&config, cli.json),
         Command::ShowConfig => show_config(&config, cli.json),
     }
-}
-
-fn factory_stats(config: &Config, selector: Option<&str>, json: bool) -> Result<ExitCode> {
-    let project = match selector {
-        Some(selector) => project::resolve(config, selector)?,
-        None => project::resolve_active(config)?,
-    };
-    let stats = factory::stats(&project)?;
-    if json {
-        print_json(&stats)?;
-    } else {
-        println!("factory stats: {}", stats.project);
-        println!(
-            "runs: {} total, {} accepted, {} rejected",
-            stats.total_runs, stats.accepted_runs, stats.rejected_runs
-        );
-        println!("incomplete runs: {}", stats.incomplete_runs);
-        println!(
-            "acceptance: {}/{}",
-            stats.acceptance.numerator, stats.acceptance.denominator
-        );
-        println!(
-            "corrections: {}/{} implementation-reached runs",
-            stats.corrections.numerator, stats.corrections.denominator
-        );
-        println!("check attempts: {}", stats.check_attempts);
-        print_grouped_counts("failure stages", &stats.failure_stages);
-        println!(
-            "runtime: {} ({}/{} runs), {} ms total",
-            stats.runtime.availability.label(),
-            stats.runtime.covered_runs,
-            stats.runtime.total_runs,
-            stats.runtime.total_elapsed_ms
-        );
-        println!(
-            "cost: {} ({}/{} authoritative runs)",
-            stats.cost.availability.label(),
-            stats.cost.authoritative_runs,
-            stats.cost.total_runs
-        );
-        for total in &stats.cost.totals {
-            println!(
-                "  {}: {} minor units at scale {}",
-                total.currency, total.amount_minor_units, total.minor_unit_scale
-            );
-        }
-    }
-    Ok(ExitCode::SUCCESS)
-}
-
-fn print_grouped_counts(label: &str, counts: &std::collections::BTreeMap<String, u64>) {
-    if counts.is_empty() {
-        println!("{label}: none recorded");
-    } else {
-        println!("{label}:");
-        for (name, count) in counts {
-            println!("  {name}: {count}");
-        }
-    }
-}
-
-fn factory_run(
-    config: &Config,
-    selector: Option<&str>,
-    task: String,
-    allow_paths: Vec<String>,
-    checks: Vec<String>,
-    check_timeout_seconds: u64,
-    json: bool,
-) -> Result<ExitCode> {
-    let project = match selector {
-        Some(selector) => project::resolve(config, selector)?,
-        None => project::resolve_active(config)?,
-    };
-    let receipt = factory::run(
-        &project,
-        &config.flok,
-        factory::FactoryRequest {
-            task,
-            allow_paths,
-            checks,
-            check_timeout_seconds,
-        },
-    )?;
-    if json {
-        print_json(&receipt)?;
-    } else {
-        println!(
-            "factory: {}",
-            if receipt.accepted {
-                "accepted"
-            } else {
-                "rejected"
-            }
-        );
-        println!("project: {}", receipt.project);
-        println!("changed paths: {}", receipt.changed_paths.join(", "));
-        println!("trace: {}", receipt.trace_path);
-        println!("receipt: {}", receipt.receipt_path);
-        if let Some(failure) = &receipt.failure {
-            println!("failure: {failure}");
-        }
-    }
-    Ok(if receipt.accepted {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
-    })
-}
-
-fn cleanup(config: &Config, selector: Option<&str>, confirm: bool, json: bool) -> Result<ExitCode> {
-    let project = match selector {
-        Some(selector) => project::resolve(config, selector)?,
-        None => project::resolve_active(config)?,
-    };
-    let outcome = herdr::cleanup_flok(&project, confirm)?;
-    if json {
-        print_json(&outcome)?;
-    } else {
-        print_cleanup_human(&outcome);
-        if !confirm && outcome.can_cleanup {
-            println!("Run again with --confirm to close the Flok and remove clean checkouts.");
-        }
-    }
-    Ok(if outcome.can_cleanup {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
-    })
-}
-
-fn cleanup_prompt(config: &Config) -> Result<ExitCode> {
-    use std::io::{self, Write};
-
-    let project = project::resolve_active(config)?;
-    let preview = herdr::cleanup_flok(&project, false)?;
-    print_cleanup_human(&preview);
-    if !preview.can_cleanup {
-        return Ok(ExitCode::FAILURE);
-    }
-    println!();
-    print!(
-        "Type the project name `{}` to close this Flok and remove its clean worker checkouts: ",
-        preview.project
-    );
-    io::stdout().flush()?;
-    let mut confirmation = String::new();
-    io::stdin().read_line(&mut confirmation)?;
-    if confirmation.trim() != preview.project {
-        println!("Cleanup cancelled; nothing changed.");
-        return Ok(ExitCode::SUCCESS);
-    }
-    println!();
-    let confirmed = herdr::cleanup_flok(&project, true)?;
-    print_cleanup_human(&confirmed);
-    Ok(if confirmed.can_cleanup {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
-    })
-}
-
-fn print_cleanup_human(outcome: &herdr::FlokCleanupOutcome) {
-    println!(
-        "Flok cleanup: {}",
-        if outcome.confirmed {
-            "confirmed"
-        } else {
-            "preview"
-        }
-    );
-    println!("project: {}", outcome.project);
-    println!(
-        "safe to clean: {}",
-        if outcome.can_cleanup { "yes" } else { "no" }
-    );
-    for worktree in &outcome.worktrees {
-        println!(
-            "  {}: {} · {} · branch preserved: {}",
-            worktree.kind,
-            if worktree.removed {
-                "removed"
-            } else if worktree.clean {
-                "clean"
-            } else {
-                "dirty"
-            },
-            worktree.path,
-            worktree.branch
-        );
-    }
-    for warning in &outcome.warnings {
-        println!("warning: {warning}");
-    }
-}
-
-fn flok(config: &Config, selector: Option<&str>, json: bool) -> Result<ExitCode> {
-    let project = match selector {
-        Some(selector) => project::resolve(config, selector)?,
-        None => project::resolve_active(config)?,
-    };
-    let outcome = herdr::open_flok(&project, &config.flok)?;
-    if json {
-        print_json(&outcome)?;
-    } else {
-        println!("Sheprd Flok: {}", outcome.workspace_label);
-        println!("project: {}", outcome.project);
-        println!("workspace: {}", outcome.workspace_id);
-        for agent in &outcome.agents {
-            println!(
-                "  {}: {} · {} · {} · {}",
-                agent.kind, agent.name, agent.model, agent.effort, agent.cwd
-            );
-        }
-        println!(
-            "health: {}",
-            if outcome.healthy { "ready" } else { "degraded" }
-        );
-        for warning in &outcome.warnings {
-            println!("warning: {warning}");
-        }
-        println!("Zoom any pane with your Herdr prefix, then z.");
-    }
-    Ok(ExitCode::SUCCESS)
-}
-
-fn pick(config: &Config, json: bool) -> Result<ExitCode> {
-    use std::io::{self, Write};
-
-    let projects = project::discover(config)?;
-    if projects.is_empty() {
-        return Err(SheprdError::Message(
-            "no git projects were discovered from the configured roots".into(),
-        ));
-    }
-    println!("Sheprd — keep every agent in frame");
-    println!("Choose a project to open as a Flok:\n");
-    for (index, project) in projects.iter().enumerate() {
-        println!(
-            "{:>3}. {:<24} {}",
-            index + 1,
-            project.name,
-            project.path.display()
-        );
-    }
-    print!("\nProject number: ");
-    io::stdout().flush()?;
-    let mut selection = String::new();
-    io::stdin().read_line(&mut selection)?;
-    let index = selection
-        .trim()
-        .parse::<usize>()
-        .ok()
-        .and_then(|value| value.checked_sub(1))
-        .filter(|index| *index < projects.len())
-        .ok_or_else(|| SheprdError::Message("invalid project selection".into()))?;
-    let outcome = herdr::open_flok(&projects[index], &config.flok)?;
-    if json {
-        print_json(&outcome)?;
-    } else {
-        println!("\nOpened {}.", outcome.workspace_label);
-    }
-    Ok(ExitCode::SUCCESS)
 }
 
 #[derive(Serialize)]
@@ -609,7 +319,6 @@ fn doctor(_config: &Config, json: bool) -> Result<ExitCode> {
         path_check("git"),
         path_check("pi"),
         path_check("codex"),
-        path_check("claude"),
         path_check("opencode"),
     ];
 
@@ -688,7 +397,6 @@ struct ConfigOutput {
     ignore: Vec<String>,
     max_depth: usize,
     default_agent: Agent,
-    flok: FlokConfig,
 }
 
 #[derive(Serialize)]
@@ -717,7 +425,6 @@ fn show_config(config: &Config, json: bool) -> Result<ExitCode> {
         ignore: config.ignore.clone(),
         max_depth: config.max_depth,
         default_agent: config.default_agent,
-        flok: config.flok.clone(),
     };
     if json {
         print_json(&output)?;
@@ -728,14 +435,6 @@ fn show_config(config: &Config, json: bool) -> Result<ExitCode> {
             if output.exists { "exists" } else { "defaults" }
         );
         println!("default agent: {}", output.default_agent);
-        println!(
-            "Flok: pi={} codex={} claude={} opencode={} effort={}",
-            output.flok.pi_model,
-            output.flok.codex_model,
-            output.flok.claude_model,
-            output.flok.opencode_model,
-            output.flok.effort
-        );
         println!("roots:");
         for root in &output.roots {
             println!("  - {root}");

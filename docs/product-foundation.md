@@ -1,69 +1,33 @@
-# Product Foundation
+# Product foundation
 
-Sheprd keeps exactly four coding agents in frame. Flok is the opinionated mode;
-Herdr is the runtime.
+Sheprd is a narrow project-to-workspace adapter for Herdr. It should remain
+boring: discover a canonical Git checkout, focus or create a workspace, apply a
+small explicit recipe, and report readiness.
 
-## Ownership
+## Non-goals
 
-Herdr owns:
+- no terminal multiplexer;
+- no hidden agents or swarm scheduler;
+- no model router;
+- no task database;
+- no acceptance authority;
+- no retired peer-agent integration;
+- no legacy receipt-backed fleet mode.
 
-- sessions, workspaces, tabs, panes, focus, zoom, and persistence;
-- remote access, attach/detach, keybindings, and agent lifecycle state;
-- plugin installation, invocation context, logs, and the CLI/socket protocol.
+## Active boundaries
 
-Sheprd owns:
+- Ratatui factory: operator command-and-control.
+- Tuxedo: private task and done-signal truth.
+- HQ: runbooks and Sol/Luna launcher.
+- Sheprd: project discovery and workspace entry.
+- Herdr: live runtime state.
+- Git/checks: code and machine-verifiable evidence.
 
-- project discovery and explicit project names;
-- one documented 2x2 Pi/Codex/Claude/OpenCode layout;
-- model and effort defaults;
-- clean-check protection and isolated worker worktrees;
-- operation locking, state receipts, health comparison, rollback, and cleanup.
-- the deterministic factory phase machine, typed envelopes, code-run checks, scope validation, traces, and acceptance receipts.
+## Design rules
 
-If a feature makes Sheprd a multiplexer, general layout engine, session store,
-keybinding system, remote layer, or hidden agent harness, it belongs elsewhere.
-
-## Flok contract
-
-Pi conducts from the clean base checkout without direct edit tools. Codex,
-Claude Code, and OpenCode each work in a dedicated branch/worktree. The roster
-is visible and fixed at four.
-
-A new Flok is transactional: prerequisites and cleanliness precede mutation;
-live roster verification precedes the atomic state receipt. Partial failures
-remove only resources still proven clean. Existing Floks are focused and
-inspected, never implicitly repaired.
-
-Cleanup is equally explicit: preview first, typed confirmation or `--confirm`,
-path ownership and cleanliness checks, workspace close, clean checkout removal,
-branch preservation, and state archival.
-
-Factory runs are code-owned loops over bounded phases: Pi plans, Codex implements, Rust checks, and Claude/OpenCode review. No agent decides phase order or acceptance; the runner never integrates or silently cleans rejected work.
-
-## Product surfaces
-
-The primary surface is the Herdr manifest:
-
-```bash
-herdr plugin action invoke m-mohamed.sheprd.open-flok
-herdr plugin action invoke m-mohamed.sheprd.choose-flok
-herdr plugin action invoke m-mohamed.sheprd.cleanup-flok
-```
-
-The binary exists for deterministic testing, JSON automation, and recovery:
-
-```bash
-sheprd doctor --json
-sheprd flok <project> --json
-sheprd cleanup <project> --json
-```
-
-The older `connect` and sample-recipe commands remain compatibility surfaces;
-they are no longer the product's main story.
-
-## Honest limits
-
-Doctor can prove paths and Herdr protocol readiness. It cannot pre-authorize
-models or prove provider credits, billing, rate limits, or future model-name
-stability. A worker's output is not merge proof; repository and test evidence
-remain required.
+1. Herdr owns live IDs and runtime state.
+2. Sheprd commands are explicit and JSON-friendly.
+3. A recipe can shape a newly created workspace, never repair a live one.
+4. Dirty repository work is never reset or cleaned automatically.
+5. The Sol/Luna launcher owns its own bounded topology and private receipts.
+6. Human acceptance remains required before merge, push, or task completion.

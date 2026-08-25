@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Changed
+
+- Make Pi the orchestration-policy owner. `sheprd factory run` now requires a
+  typed `--plan-file` and no longer prompts Pi to plan. Sheprd retains
+  worktree isolation, bounded implementation corrections, deterministic checks,
+  independent reviews, scope enforcement, traces, and acceptance receipts.
+
+### Added
+
+- Add read-only `sheprd factory cases [project]` output. It exports a bounded,
+  newest-first set of validated receipt cases for project-specific evaluation
+  without exposing full agent transcripts or changing factory state.
+- Preserve the exact Tuxedo task reference and Pi's validated, versioned skill
+  selection in factory plans, traces, receipts, and bounded case exports.
+
 ## v0.4.2 - 2026-08-09
 
 ### Fixed

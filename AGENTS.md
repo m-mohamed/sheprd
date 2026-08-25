@@ -1,14 +1,18 @@
 # sheprd
 
-Sheprd is a Herdr plugin, not a terminal runtime. Its flagship workflow is
-`Flok`: one visible Pi conductor plus Codex, Claude Code, and OpenCode workers.
+Sheprd is a Herdr plugin, not a terminal runtime. It routes canonical projects
+into Herdr workspaces and exposes focused recipes and readiness checks. The
+Ratatui cockpit owns command-and-control; the HQ workflow owns Sol/Luna
+parallel execution.
 
 Keep the boundary sharp:
 
 - Herdr owns runtime state, panes, tabs, sessions, remotes, keybindings,
   integrations, persistence, attach/detach, and agent status.
-- Sheprd owns project discovery, the explicit Flok layout, worker-worktree
-  creation, model defaults, preflight checks, and structured outcomes.
+- Sheprd owns project discovery, canonical checkout resolution, workspace focus,
+  recipes, and readiness.
+- Pi owns orchestration policy. Sheprd must not choose work, schedule work, or
+  prompt Pi to create a plan.
 
 If a change turns `sheprd` into a terminal multiplexer, layout engine,
 keybinding layer, persistence layer, remote/SSH layer, or Herdr replacement,
@@ -23,11 +27,11 @@ stop and start with a discussion.
 - **Live ids are not durable.** Herdr workspace, tab, and pane ids belong to the
   current session. Read them from Herdr responses every time; do not store or
   guess them.
-- **Flok is explicit.** The plugin may shape a newly created `*-flok` workspace
-  into its documented 2x2 layout. It must only focus an existing Flok; never
-  reshape or repair live panes implicitly.
-- **Exactly four agents.** Pi conducts. Codex, Claude Code, and OpenCode work.
-  Do not add hidden subagents or another harness to Flok.
+- **Recipes are explicit.** A recipe may shape a newly created workspace; it
+  must never reshape or repair live panes implicitly.
+- **Sol/Luna is explicit and external to Sheprd.** HQ launches one Pi conductor
+  and exactly three visible Codex Luna-Max workers with declared scope and
+  checks. There are no hidden agents.
 - **Workers are isolated.** Each worker starts in its own clean git worktree.
   Pi stays in the base checkout without direct edit/write tools.
 - **Recipes are explicit samples.** `--recipe agent-dev` may shape a newly
@@ -43,8 +47,6 @@ stop and start with a discussion.
 - `src/cli.rs` owns CLI shape and help text.
 - `src/config.rs` owns config loading and path expansion.
 - `src/project.rs` owns project discovery and selector resolution.
-- `src/factory.rs` owns the deterministic factory phase machine, typed
-  envelopes, declared checks, scope validation, traces, and receipts.
 - `src/herdr.rs` is the only layer that shells out to `herdr`.
 - `src/recipe.rs` owns sample recipe descriptions.
 - `src/main.rs` renders human and JSON command output.

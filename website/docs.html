@@ -1,46 +1,8 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sheprd docs</title>
-  <style>
-    :root{color-scheme:dark;--bg:#11131d;--panel:#181b2a;--line:#2b3046;--text:#c8d3f5;--muted:#828bb8;--blue:#82aaff;--cyan:#86e1fc;--green:#c3e88d;--purple:#c099ff}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace}a{color:var(--cyan);text-decoration:none}.wrap{width:min(980px,calc(100% - 36px));margin:auto}nav{height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}nav a:first-child{font-weight:800;color:var(--text)}header{padding:76px 0 54px}h1{font:700 clamp(44px,7vw,74px)/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:-.05em;margin:12px 0 20px}h2{font:700 28px/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:-.03em}.eyebrow{color:var(--purple);font-size:13px;text-transform:uppercase;letter-spacing:.14em}.lead{color:#a9b4da;font:19px/1.6 ui-sans-serif,system-ui,sans-serif;max-width:720px}.grid{display:grid;grid-template-columns:240px 1fr;gap:40px;padding-bottom:80px}.toc{position:sticky;top:24px;align-self:start;border:1px solid var(--line);background:var(--panel);padding:18px;border-radius:10px}.toc a{display:block;padding:6px 0;color:var(--muted)}.toc a:hover{color:white}.content section{padding:0 0 46px;margin-bottom:46px;border-bottom:1px solid var(--line)}pre{padding:18px;background:#0c0e16;border:1px solid var(--line);border-radius:10px;overflow:auto;color:#aeb9df}code{color:var(--green)}.callout{padding:18px;border-left:3px solid var(--blue);background:var(--panel);color:#aeb9df}.links{display:grid;grid-template-columns:1fr 1fr;gap:12px}.link{padding:16px;border:1px solid var(--line);border-radius:9px;background:var(--panel)}footer{border-top:1px solid var(--line);padding:30px 0;color:var(--muted)}@media(max-width:760px){.grid{grid-template-columns:1fr}.toc{position:static}.links{grid-template-columns:1fr}}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <nav><a href="index.html">← SHEPRD</a><a href="https://github.com/m-mohamed/sheprd">GitHub ↗</a></nav>
-    <header><div class="eyebrow"># documentation</div><h1>Sheprd docs.</h1><p class="lead">Start with the boundary: Herdr is the runtime; Sheprd opens and safely retires one visible four-agent Flok.</p></header>
-    <div class="grid">
-      <aside class="toc"><a href="#install">Install</a><a href="#open">Open</a><a href="#conduct">Conduct</a><a href="#factory">Factory</a><a href="#cleanup">Cleanup</a><a href="#trust">Trust</a><a href="#reference">Reference</a></aside>
-      <main class="content">
-        <section id="install"><h2>Install</h2><pre>herdr plugin install m-mohamed/sheprd
-herdr plugin action list --plugin m-mohamed.sheprd
-herdr plugin action invoke m-mohamed.sheprd.doctor</pre><p>The build step verifies the exact release archive's SHA-256 and GitHub provenance. If no verified prebuilt is available, it performs a locked source build.</p></section>
-        <section id="open"><h2>Open a Flok</h2><pre>herdr plugin action invoke m-mohamed.sheprd.open-flok
-# or choose a configured project
-herdr plugin action invoke m-mohamed.sheprd.choose-flok</pre><div class="callout">A new Flok requires a clean checkout. An existing Flok is focused and health-checked, never silently reshaped.</div></section>
-        <section id="conduct"><h2>Conduct visibly</h2><pre>herdr agent list
-herdr agent prompt &lt;name&gt; '&lt;bounded task&gt;'
-herdr agent wait &lt;name&gt; --until idle --timeout 120000
-herdr agent read &lt;name&gt; --source recent --lines 120 --format text</pre><p>Pi conducts. Codex, Claude Code, and OpenCode work in isolated branches/worktrees. Repository checks—not agent prose—are the proof.</p></section>
-        <section id="factory"><h2>Run the code-owned factory</h2><pre>sheprd factory run my-app \
-  --task "add retry metrics" \
-  --allow-path src/metrics.rs \
-  --check "cargo test metrics" \
-  --json</pre><p>Pi plans, Codex implements, Rust checks, Claude reviews intent, and OpenCode reviews adversarially. Acceptance requires passing checks and both approvals. Every run returns an append-only trace and final receipt; rejection preserves the worker checkout.</p></section>
-        <section id="cleanup"><h2>Preview, then confirm</h2><pre>herdr plugin action invoke m-mohamed.sheprd.cleanup-preview
-herdr plugin action invoke m-mohamed.sheprd.cleanup-flok</pre><p>The overlay requires the project name. Dirty or out-of-scope paths are preserved, branches are never deleted, and the state receipt is archived.</p></section>
-        <section id="trust"><h2>Know what runs</h2><p>Herdr plugins execute as your user and are not sandboxed. Review <code>herdr-plugin.toml</code>, <code>scripts/install-plugin.sh</code>, and the runtime scripts before installation. Doctor cannot prove model credits or billing.</p></section>
-        <section id="reference"><h2>Reference</h2><div class="links">
-          <a class="link" href="../docs/commands.md">Command contract →</a><a class="link" href="../SKILL.md">Agent operator skill →</a>
-          <a class="link" href="../agent-guide.md">Agent guide →</a><a class="link" href="../SECURITY.md">Security →</a>
-          <a class="link" href="../docs/prelaunch-chaos.md">Proof checklist →</a><a class="link" href="../CONTRIBUTING.md">Contributing →</a>
-        </div></section>
-      </main>
-    </div>
-    <footer>Sheprd · keep every coding agent in frame.</footer>
-  </div>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sheprd docs</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:850px;margin:40px auto;padding:0 20px;color:#173b36;background:#f4f8f7}a{color:#087f73}code,pre{font-family:ui-monospace,monospace}pre{background:#fff;border:1px solid #d4e2dd;border-radius:8px;padding:14px;overflow:auto}</style></head><body><header><p>Herdr project router</p><h1>Sheprd docs.</h1><p>Sheprd resolves canonical projects, focuses Herdr workspaces, applies small recipes, and reports readiness. Ratatui owns command-and-control; HQ owns Sol/Luna bounded execution.</p></header><h2>Install</h2><pre>herdr plugin install m-mohamed/sheprd</pre><h2>Commands</h2><pre>factory --json
+sheprd list --json
+sheprd connect my-app --recipe agent-dev
+sheprd doctor --json
+sheprd show-config</pre><h2>Sol/Luna</h2><p>Use the explicit HQ launcher from a Herdr-managed pane with a Tuxedo task ID, allow paths, checks, and a human acceptance gate.</p><pre>~/workspace/hq/workflows/sol-luna-launch.sh \
+  --project my-app --task-id my-app --task-number 1 \
+  --task "bounded outcome" --allow-path src --check "cargo test"</pre><p><a href="../docs/commands.md">Command reference</a> · <a href="../SKILL.md">Skill contract</a> · <a href="../agent-guide.md">Agent guide</a> · <a href="../docs/prelaunch-chaos.md">Prelaunch checks</a> · <a href="../CONTRIBUTING.md">Contributing</a> · <a href="../SECURITY.md">Security</a></p></body></html>

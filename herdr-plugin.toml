@@ -2,7 +2,7 @@ id = "m-mohamed.sheprd"
 name = "Sheprd"
 version = "0.4.2"
 min_herdr_version = "0.7.5"
-description = "Keep every coding agent in frame. Open a visible four-agent Flok in Herdr."
+description = "Route canonical projects into Herdr workspaces. The Ratatui factory cockpit owns command-and-control."
 platforms = ["linux", "macos"]
 
 # Managed installs prefer an exact-version, checksum-verified release binary.
@@ -11,50 +11,8 @@ platforms = ["linux", "macos"]
 command = ["bash", "scripts/install-plugin.sh"]
 
 [[actions]]
-id = "open-flok"
-title = "Open Flok in current project"
-description = "Open or focus Pi, Codex, Claude Code, and OpenCode in one isolated four-agent workspace."
-contexts = ["workspace", "tab", "pane"]
-command = ["./target/release/sheprd", "flok", "--json"]
-
-[[actions]]
-id = "choose-flok"
-title = "Choose project and open Flok"
-description = "Choose a configured Git project, then open or focus its four-agent Flok."
-contexts = ["workspace", "tab", "pane"]
-command = ["bash", "scripts/open-flok-picker.sh"]
-
-[[actions]]
 id = "doctor"
-title = "Check Sheprd Flok readiness"
-description = "Check Herdr 0.7.5+, Git, and all four configured agent CLIs without changing a project."
+title = "Check Sheprd readiness"
+description = "Check Herdr, Git, project discovery, and the focused workspace contract without changing a project."
 contexts = ["workspace", "tab", "pane"]
 command = ["./target/release/sheprd", "doctor", "--json"]
-
-# Plugin actions are headless, so cleanup is deliberately preview-only here.
-# A human must run `sheprd cleanup [PROJECT] --confirm` for mutation.
-[[actions]]
-id = "cleanup-preview"
-title = "Preview safe Flok cleanup"
-description = "Report whether the current Flok can be closed and its clean worker checkouts removed; changes nothing."
-contexts = ["workspace", "tab", "pane"]
-command = ["./target/release/sheprd", "cleanup", "--json"]
-
-[[actions]]
-id = "cleanup-flok"
-title = "Clean up Flok…"
-description = "Open an interactive preview and require the project name before closing the Flok; dirty checkouts are preserved."
-contexts = ["workspace", "tab", "pane"]
-command = ["bash", "scripts/open-flok-cleanup.sh"]
-
-[[panes]]
-id = "project-picker"
-title = "Sheprd — Open Flok"
-placement = "overlay"
-command = ["./target/release/sheprd", "pick"]
-
-[[panes]]
-id = "cleanup-confirm"
-title = "Sheprd — Clean up Flok"
-placement = "overlay"
-command = ["./target/release/sheprd", "cleanup-prompt"]

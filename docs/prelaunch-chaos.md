@@ -1,109 +1,44 @@
-# Prelaunch Chaos Checklist
+# Prelaunch checks
 
-Run this against the exact release commit. Keep static, disposable-runtime, real
-project, public-release, and marketplace truth separate.
+Sheprd's prelaunch gate is intentionally small and deterministic.
 
-## Static gate
+## Static checks
 
 ```bash
-just check
-just metadata-smoke
-git diff --check
-cargo package --locked
-cargo deny check
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test --locked
+cargo package --locked --allow-dirty
 bash -n scripts/*.sh
+shellcheck scripts/*.sh
 ```
 
-Expected: the complete test suite plus format/Clippy/package green, no advisory/license/source
-failure, and only the documented `winnow` duplicate-version warning.
-
-## Public hygiene gate
+## CLI smoke
 
 ```bash
-rg -n --hidden --glob '!target/**' --glob '!.git/**' \
-  '(Users/[^/]+|BEGIN .*PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{10,})' .
-rg -n --hidden --glob '!target/**' --glob '!.git/**' --glob '!docs/prelaunch-chaos.md' \
-  '(smart session manager|Herdr is dual-licensed|hey@herdr.dev)' .
+target/release/sheprd --help
+target/release/sheprd init --print --json
+target/release/sheprd list --help
+target/release/sheprd connect --help
+target/release/sheprd doctor --help
+target/release/sheprd recipes --json
+target/release/sheprd show-config --json
 ```
 
-Expected: no maintainer machine path, token/key, copied Herdr licensing, or old
-product framing.
-
-## Live plugin gate
+## Failure smoke
 
 ```bash
-cargo build --release --locked
-herdr plugin unlink m-mohamed.sheprd 2>/dev/null || true
-herdr plugin link .
-herdr plugin action list --plugin m-mohamed.sheprd
-herdr plugin action invoke m-mohamed.sheprd.doctor
-herdr plugin log list --plugin m-mohamed.sheprd
+if target/release/sheprd connect definitely-not-a-project --json; then
+  exit 1
+fi
 ```
 
-Expected: Herdr accepts the manifest, lists five actions, and doctor reports the
-current Herdr `0.8.0` runtime, compatible protocol, Git, and four agent CLIs
-ready. The manifest's compatibility floor remains `0.7.5`.
+The command must emit no successful JSON on stdout and must return a structured
+error on stderr. No runtime state may be mutated.
 
-## Disposable Flok gate
+## Sol/Luna pilot gate
 
-Use an exact temporary path and keep the cleanup receipt:
-
-```bash
-tmp_repo="$(mktemp -d /tmp/sheprd-flok.XXXXXX)"
-git -C "$tmp_repo" init -q
-git -C "$tmp_repo" config user.name "Sheprd Release Test"
-git -C "$tmp_repo" config user.email "release-test@example.invalid"
-printf '# release fixture\n' > "$tmp_repo/README.md"
-git -C "$tmp_repo" add README.md
-git -C "$tmp_repo" commit -q -m seed
-target/release/sheprd flok "$tmp_repo" --json
-target/release/sheprd flok "$tmp_repo" --json
-target/release/sheprd cleanup "$tmp_repo" --json
-target/release/sheprd cleanup "$tmp_repo" --confirm --json
-git -C "$tmp_repo" worktree list --porcelain
-```
-
-Expected:
-
-- first launch returns `created_flok`, four agents, `healthy: true`;
-- second returns `focused_existing` without new worktrees or pane reshaping;
-- preview changes nothing;
-- confirmed cleanup closes the workspace, removes three clean checkouts,
-  preserves three branches, and archives state;
-- the base repository is the only remaining worktree.
-
-Move the exact temporary directory to Trash after the receipt is captured.
-
-## Failure gate
-
-The automated suite covers missing CLIs, Herdr `0.7.4`, forced agent-start
-failure, clean rollback, dirty rollback preservation, missing state, injected
-`HERDR_BIN_PATH`, checksum mismatch, dirty cleanup refusal, and typed overlay
-confirmation. Re-run the named tests when changing those paths:
-
-```bash
-cargo test --locked --test cli flok_
-cargo test --locked --test cli cleanup_
-cargo test --locked --test install_plugin
-cargo test --locked --test manifest
-```
-
-## Real project iteration gate
-
-Use one clean, non-release-critical repository:
-
-1. Open its Flok through the plugin action.
-2. Have Pi give one bounded implementation packet to a visible worker.
-3. Require another visible worker to review the diff.
-4. Require repository tests and a commit in the worker branch.
-5. Inspect the actual branch, diff, test receipt, and base-checkout cleanliness.
-6. Preview cleanup; do not remove worktrees containing useful unmerged work.
-
-This proves the operating loop. It does not by itself prove release assets or
-the public marketplace path.
-
-## Release and marketplace gates
-
-Follow [public-launch.md](public-launch.md). Do not call the plugin published
-until public install succeeds. Do not call it listed until the marketplace card
-is visible after the automatic index refresh.
+The separate HQ launcher requires a Herdr-managed pane, a clean base checkout,
+explicit Tuxedo identity, allow paths, and deterministic checks. The first
+pilot is run from `~/workspace/hq/workflows/sol-luna-max.md`; inspect its private
+receipt before cleanup or acceptance.
