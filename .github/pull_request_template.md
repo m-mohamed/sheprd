@@ -9,8 +9,8 @@ What changed, and why does it belong in `sheprd`?
       or agent-status ownership to `sheprd`.
 - [ ] This keeps the visible roster at exactly Pi, Codex, Claude Code, and
       OpenCode; no hidden subagents were added.
-- [ ] Existing Floks are focused/inspected, not silently reshaped or repaired.
-- [ ] Rollback or cleanup cannot delete a worktree that is dirty or outside
+- [ ] Herdr workspaces are focused/inspected, not silently reshaped or repaired.
+- [ ] Cleanup cannot delete unrelated dirty worktrees or repository WIP.
       Sheprd's owned state root.
 
 ## Proof
@@ -25,8 +25,8 @@ For user-facing changes, also include the relevant output from:
 
 ```bash
 just check
-target/release/sheprd flok <project> --json
-target/release/sheprd cleanup <project> --json
+target/release/sheprd connect <project> --no-attach --json
+target/release/sheprd doctor --json
 ```
 
 ## Docs

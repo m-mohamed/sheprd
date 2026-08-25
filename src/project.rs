@@ -3,7 +3,6 @@ use crate::error::{Result, SheprdError};
 use crate::recipe::Agent;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 #[derive(Clone, Debug)]
 pub struct Project {
@@ -40,88 +39,7 @@ pub fn resolve(config: &Config, selector: &str) -> Result<Project> {
     }
 }
 
-pub fn resolve_active(config: &Config) -> Result<Project> {
-    let resolved = if let Some(path) = context_path()? {
-        project_from_nested_path(&path)
-    } else {
-        project_from_nested_path(&std::env::current_dir()?)
-    };
-    resolved
-        .map(|project| configured_name(config, project))
-        .map_err(|_| {
-            SheprdError::Message(
-                "active pane is not inside a git repository; choose a configured project".into(),
-            )
-        })
-}
-
-fn configured_name(config: &Config, mut project: Project) -> Project {
-    if let Some(configured) = config.projects.iter().find(|configured| {
-        configured
-            .path
-            .canonicalize()
-            .is_ok_and(|path| path == project.path)
-    }) {
-        project.name = configured.name.clone();
-    }
-    project
-}
-
-fn context_path() -> Result<Option<PathBuf>> {
-    let Some(value) = std::env::var_os("HERDR_PLUGIN_CONTEXT_JSON") else {
-        return Ok(None);
-    };
-    let value: serde_json::Value = serde_json::from_str(&value.to_string_lossy())?;
-    for key in ["focused_pane_cwd", "workspace_cwd"] {
-        if let Some(path) = value.get(key).and_then(serde_json::Value::as_str) {
-            return Ok(Some(PathBuf::from(path)));
-        }
-    }
-    Ok(None)
-}
-
-fn project_from_nested_path(path: &Path) -> Result<Project> {
-    let canonical = path.canonicalize()?;
-    for candidate in canonical.ancestors() {
-        if candidate.join(".git").exists() {
-            let project = project_from_path(candidate)?;
-            if let Some(base) = linked_worktree_base(&project.path) {
-                return project_from_path(&base);
-            }
-            return Ok(project);
-        }
-    }
-    Err(SheprdError::Message(format!(
-        "project path is not inside a git repository: {}",
-        path.display()
-    )))
-}
-
-fn linked_worktree_base(path: &Path) -> Option<PathBuf> {
-    let output = Command::new("git")
-        .args([
-            "-C",
-            path.to_str()?,
-            "rev-parse",
-            "--path-format=absolute",
-            "--git-common-dir",
-        ])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let common = PathBuf::from(String::from_utf8(output.stdout).ok()?.trim())
-        .canonicalize()
-        .ok()?;
-    if common.file_name().and_then(|value| value.to_str()) != Some(".git") {
-        return None;
-    }
-    let base = common.parent()?.to_path_buf();
-    (base != path).then_some(base)
-}
-
-fn selector_is_path_like(selector: &str, path: &Path) -> bool {
+pub fn selector_is_path_like(selector: &str, path: &Path) -> bool {
     path.is_absolute()
         || selector.starts_with('.')
         || selector.contains('/')

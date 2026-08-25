@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
 
@@ -41,65 +40,10 @@ fn plugin_manifest_is_a_transparent_install_and_action_contract() {
     );
 
     let actions = plugin["actions"].as_array().expect("actions");
-    let mut ids = BTreeSet::new();
-    for action in actions {
-        let id = action["id"].as_str().expect("action id");
-        assert!(ids.insert(id), "duplicate action id: {id}");
-        assert!(
-            action["description"]
-                .as_str()
-                .is_some_and(|description| !description.trim().is_empty()),
-            "action {id} must explain its behavior in the install preview"
-        );
-        assert!(
-            !action["command"]
-                .as_array()
-                .expect("action argv")
-                .is_empty(),
-            "action {id} needs an argv command"
-        );
-    }
-    assert_eq!(
-        ids,
-        BTreeSet::from([
-            "choose-flok",
-            "cleanup-flok",
-            "cleanup-preview",
-            "doctor",
-            "open-flok",
-        ])
-    );
-
-    let cleanup = actions
-        .iter()
-        .find(|action| action["id"].as_str() == Some("cleanup-preview"))
-        .expect("cleanup preview action");
-    let cleanup_command = cleanup["command"]
-        .as_array()
-        .expect("cleanup command")
-        .iter()
-        .filter_map(toml::Value::as_str)
-        .collect::<Vec<_>>();
-    assert!(cleanup_command.contains(&"cleanup"));
-    assert!(!cleanup_command.contains(&"--confirm"));
-
-    let panes = plugin["panes"].as_array().expect("panes");
-    assert_eq!(panes.len(), 2);
-    for pane in panes {
-        assert_eq!(
-            pane["placement"].as_str(),
-            Some("overlay"),
-            "Herdr 0.7.5 accepts overlay, not the retired popup placement"
-        );
-    }
-
-    for script in ["open-flok-picker.sh", "open-flok-cleanup.sh"] {
-        let contents = fs::read_to_string(root.join("scripts").join(script)).expect("launcher");
-        assert!(contents.contains("--placement overlay"));
-        assert!(!contents.contains("--width"));
-        assert!(!contents.contains("--height"));
-    }
-    let cleanup_launcher =
-        fs::read_to_string(root.join("scripts/open-flok-cleanup.sh")).expect("cleanup launcher");
-    assert!(cleanup_launcher.contains("HERDR_PLUGIN_CONTEXT_JSON=$HERDR_PLUGIN_CONTEXT_JSON"));
+    assert_eq!(actions.len(), 1);
+    assert_eq!(actions[0]["id"].as_str(), Some("doctor"));
+    assert!(actions[0]["description"]
+        .as_str()
+        .is_some_and(|value| !value.is_empty()));
+    assert!(plugin.get("panes").is_none());
 }

@@ -28,7 +28,7 @@ body:
       description: The shortest command sequence that shows the problem.
       placeholder: |
         herdr plugin action invoke m-mohamed.sheprd.doctor
-        herdr plugin action invoke m-mohamed.sheprd.open-flok
+        factory --json
         herdr plugin log list --plugin m-mohamed.sheprd
     validations:
       required: true

@@ -26,7 +26,7 @@ audit:
     cargo deny check
 
 shell-check:
-    bash -n scripts/install-plugin.sh scripts/open-flok-picker.sh scripts/open-flok-cleanup.sh scripts/install-local.sh scripts/extract-release-notes.sh
+    bash -n scripts/install-plugin.sh scripts/install-local.sh scripts/extract-release-notes.sh
     shellcheck scripts/*.sh
 
 build:
@@ -38,9 +38,8 @@ chaos-smoke: build
     target/release/sheprd init --print
     target/release/sheprd init --print --json
     target/release/sheprd connect --help
-    target/release/sheprd flok --help
-    target/release/sheprd factory run --help
-    target/release/sheprd cleanup --help
+    target/release/sheprd list --help
+    target/release/sheprd doctor --help
     target/release/sheprd recipes
     target/release/sheprd recipes --json
     target/release/sheprd show-config

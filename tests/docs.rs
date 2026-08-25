@@ -40,19 +40,12 @@ fn website_keeps_the_public_surface() {
     let html = fs::read_to_string(repo_root().join("website/index.html")).expect("website index");
 
     for needle in [
-        "id=\"install\"",
-        "id=\"quick-start\"",
-        "id=\"contract\"",
-        "id=\"docs\"",
-        "Keep every coding agent",
-        "conductor",
-        "Codex CLI",
-        "Claude Code",
-        "OpenCode",
-        "cleanup-preview",
-        "SHA-256",
+        "project router",
+        "Ratatui",
+        "Sol/Luna",
+        "Luna-Max",
         "docs.html",
-        "Herdr marketplace",
+        "Daily entry",
     ] {
         assert!(html.contains(needle), "website is missing {needle}");
     }
@@ -64,11 +57,9 @@ fn website_docs_page_keeps_public_docs_surface() {
 
     for needle in [
         "Sheprd docs.",
-        "Start with the boundary:",
         "herdr plugin install m-mohamed/sheprd",
-        "m-mohamed.sheprd.open-flok",
-        "m-mohamed.sheprd.cleanup-flok",
-        "Herdr plugins execute as your user",
+        "factory --json",
+        "sol-luna-launch.sh",
         "../docs/commands.md",
         "../SKILL.md",
         "../agent-guide.md",
@@ -95,10 +86,10 @@ fn docs_index_routes_public_surfaces() {
         "[Command reference](commands.md)",
         "[Product foundation](product-foundation.md)",
         "[Herdr precedent](herdr-precedent.md)",
-        "[`../SKILL.md`](../SKILL.md)",
-        "[`../agent-guide.md`](../agent-guide.md)",
+        "[Skill contract](../SKILL.md)",
+        "[Agent guide](../agent-guide.md)",
         "[Open-source readiness](open-source-readiness.md)",
-        "[Prelaunch chaos checklist](prelaunch-chaos.md)",
+        "[Prelaunch checks](prelaunch-chaos.md)",
         "[Public launch checklist](public-launch.md)",
         "[Release process](release.md)",
     ] {
@@ -127,24 +118,15 @@ fn command_reference_covers_public_cli_surface() {
 
     for needle in [
         "## Global options",
-        "## `flok`",
-        "## `cleanup`",
         "## `init`",
         "## `list`",
-        "## Legacy `connect`",
-        "## Legacy `connect --recipe agent-dev`",
+        "## `connect`",
         "## `recipes`",
         "## `doctor`",
         "## `show-config`",
-        "## Failure behavior",
-        "`herdr.protocol_ready`",
-        "`workspace_id`",
-        "`attached`",
-        "\"ok\": false",
-        "\"exit_code\": 2",
-        "`error.kind`",
-        "never repairs or reshapes",
-        "cannot be an arbitrary",
+        "## Sol/Luna workflow",
+        "JSON failures go to stderr",
+        "never silently reshaped",
     ] {
         assert!(
             reference.contains(needle),
@@ -170,14 +152,11 @@ fn agent_guide_covers_teaching_surface() {
     );
 
     for needle in [
-        "Sheprd is a Herdr plugin",
-        "Flok",
-        "m-mohamed.sheprd.doctor",
-        "Pi conducts",
+        "Sheprd is a thin Herdr project router",
+        "factory --json",
+        "Sol-Hi / Pi conductor",
         "OpenCode",
-        "There are no hidden subagents",
-        "cleanup-flok",
-        "Raw socket",
+        "No hidden agents are allowed",
         "Herdr IDs",
     ] {
         assert!(guide.contains(needle), "agent guide is missing {needle}");
@@ -220,8 +199,8 @@ fn github_workflows_enforce_public_smoke_surface() {
 
     for needle in [
         "target/release/sheprd init --print --json",
-        "target/release/sheprd flok --help",
-        "target/release/sheprd cleanup --help",
+        "target/release/sheprd list --help",
+        "target/release/sheprd doctor --help",
         "JSON failure smoke",
         "definitely-not-a-project",
         "cargo package --locked",

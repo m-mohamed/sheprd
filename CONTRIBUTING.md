@@ -28,12 +28,11 @@ Herdr owns runtime state:
 - agent state
 - integrations
 
-`sheprd` owns the Flok workflow layer:
+`sheprd` owns the project-router layer:
 
-- project discovery
-- the explicit four-agent layout and model defaults
-- clean preflight and isolated worker worktrees
-- state receipts, health inspection, rollback, and safe cleanup
+- project discovery and canonical checkout resolution
+- Herdr workspace focus and the explicit editor-first recipe
+- readiness checks and structured JSON outcomes
 
 If a change turns `sheprd` into a terminal multiplexer, layout engine, or Herdr
 replacement, start with a discussion first.
@@ -44,7 +43,7 @@ Use issues for reproducible bugs with a clear current behavior, expected
 behavior, reproduction, environment, and impact.
 
 Use discussions for ideas, product direction, workflow questions, integration
-requests, and anything that would expand `sheprd` beyond the Flok workflow boundary.
+requests, and anything that would expand `sheprd` beyond the project-router boundary.
 
 ## Checks
 
@@ -77,7 +76,7 @@ The root commit may be named `Initial commit`.
 After that, use short conventional commit subjects:
 
 ```text
-feat: add Flok health output
+feat: add project readiness output
 fix: preserve dirty rollback state
 docs: clarify Herdr ownership
 ```

@@ -1,12 +1,11 @@
 use crate::recipe::{Agent, RecipeName};
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
 
 #[derive(Clone, Debug, Parser)]
 #[command(name = "sheprd")]
 #[command(version, about = "Keep every coding agent in frame with Herdr")]
 #[command(
-    long_about = "Sheprd is a Herdr plugin for opening a visible four-agent Flok: Pi conducts while Codex, Claude Code, and OpenCode work in isolated git worktrees."
+    long_about = "Sheprd routes projects into Herdr workspaces. The Ratatui factory cockpit and HQ workflows own command-and-control; Sheprd owns project discovery, focus, and readiness."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -27,36 +26,6 @@ pub struct Cli {
 
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command {
-    /// Open or focus a four-agent Flok for a project.
-    Flok {
-        /// Project name or git checkout path. Defaults to the active Herdr project.
-        project: Option<String>,
-    },
-
-    /// Run the deterministic, receipt-backed factory workflow in a Flok.
-    Factory {
-        #[command(subcommand)]
-        command: FactoryCommand,
-    },
-
-    /// Preview or perform safe cleanup of a Flok workspace and worker checkouts.
-    Cleanup {
-        /// Project name or git checkout path. Defaults to the active Herdr project.
-        project: Option<String>,
-
-        /// Close the Flok and remove only verified-clean worker checkouts.
-        #[arg(long)]
-        confirm: bool,
-    },
-
-    /// Interactively confirm cleanup inside a Herdr overlay.
-    #[command(hide = true)]
-    CleanupPrompt,
-
-    /// Pick a project interactively and open its Flok.
-    #[command(hide = true)]
-    Pick,
-
     /// Print or write a starter config file.
     Init {
         /// Print the starter config instead of writing it.
@@ -94,49 +63,4 @@ pub enum Command {
 
     /// Show the active config.
     ShowConfig,
-}
-
-#[derive(Clone, Debug, Subcommand)]
-pub enum FactoryCommand {
-    /// Execute a Pi-authored plan, check it, review it, and emit an acceptance receipt.
-    Run {
-        /// Project name or git checkout path. Defaults to the active Herdr project.
-        project: Option<String>,
-
-        /// Bounded task for the four-agent factory.
-        #[arg(long)]
-        task: String,
-
-        /// Typed JSON plan produced by the Pi orchestrator.
-        #[arg(long = "plan-file")]
-        plan_file: Option<PathBuf>,
-
-        /// Repository-relative file or directory the implementation worker may change.
-        #[arg(long = "allow-path", required = true)]
-        allow_paths: Vec<String>,
-
-        /// Check command Rust runs in the Codex worker checkout. May be repeated.
-        #[arg(long = "check", required = true)]
-        checks: Vec<String>,
-
-        /// Per-check timeout in seconds.
-        #[arg(long = "check-timeout-seconds", default_value_t = 300)]
-        check_timeout_seconds: u64,
-    },
-
-    /// Aggregate private factory receipts without changing state.
-    Stats {
-        /// Project name or git checkout path. Defaults to the active Herdr project.
-        project: Option<String>,
-    },
-
-    /// Export recent validated receipts as bounded evaluation cases without changing state.
-    Cases {
-        /// Project name or git checkout path. Defaults to the active Herdr project.
-        project: Option<String>,
-
-        /// Maximum completed runs to return, newest first.
-        #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u16).range(1..=100))]
-        limit: u16,
-    },
 }

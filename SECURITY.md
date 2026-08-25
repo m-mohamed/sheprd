@@ -23,21 +23,13 @@ gh attestation verify sheprd-TARGET.tar.gz --repo m-mohamed/sheprd
 ## Runtime boundaries
 
 - Sheprd calls Herdr through `HERDR_BIN_PATH` when the plugin host provides it.
-- A new Flok requires a clean base checkout and creates one isolated worktree
-  per worker.
+- Sheprd only creates or focuses a workspace and applies the explicit
+  editor-first recipe; it does not launch a fleet.
+- The HQ Sol/Luna launcher creates isolated worker worktrees, requires a clean
+  base, explicit allow-paths and checks, and preserves dirty state.
 - Worker files are isolated by checkout, but Git worktrees intentionally share
-  the base repository's object store and refs. A worker with Git write access
-  can affect shared branches; review commits before integrating them.
-- Pi, Codex, and Claude are launched in non-interactive approval modes suited
-  to their assigned checkout. OpenCode keeps its native permission prompts;
-  external-path work may block until a human approves it.
-- Partial creation rolls back only checkouts that are still clean. Dirty state
-  is preserved and reported.
-- Cleanup asks Git itself to refuse dirty worktree removal; it does not pass
-  `--force`.
-- The headless cleanup action is preview-only. The interactive Herdr overlay
-  requires the project name; the CLI requires `--confirm`. Both refuse dirty or
-  out-of-scope paths, preserve worker branches, and archive the state receipt.
+  the base repository's object store and refs; review branches before
+  integrating them.
 - Herdr does not sandbox plugins. Sheprd does not claim otherwise.
 
 ## Reporting a vulnerability

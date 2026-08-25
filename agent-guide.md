@@ -1,130 +1,61 @@
-# Sheprd Agent Guide
+# Sheprd agent guide
 
-This guide is for an agent helping a human install, operate, or troubleshoot
-Sheprd. Sheprd is a Herdr plugin; Flok is its opinionated four-agent workflow.
+Sheprd is a thin Herdr project router. The Ratatui factory cockpit is the
+operator command center; Sheprd is not a multiplexer, swarm scheduler, or
+receipt-backed fleet runtime.
 
-## Explain the boundary first
+## Start here
 
-Herdr is the terminal runtime. It owns live workspaces, tabs, panes, agent
-state, persistence, remotes, keybindings, attach/detach, and the socket API.
-Sheprd asks Herdr to create or focus one known layout and never stores live IDs
-as configuration.
+```bash
+factory --json
+sheprd list --json
+sheprd connect <project> --recipe agent-dev
+sheprd doctor --json
+```
 
-The Flok grid is:
+Use `sheprd connect` to focus or create the small editor-first workspace. It
+must not reshape a live workspace implicitly. Herdr owns workspace, tab, pane,
+and agent IDs; these Herdr IDs are ephemeral, so read them from Herdr responses whenever needed.
+
+## Active fleet
+
+For bounded parallel work, run HQ's launcher inside a Herdr pane:
+
+```bash
+~/workspace/hq/workflows/sol-luna-launch.sh \
+  --project <project> \
+  --task-id <tuxedo-project-id> \
+  --task-number <line> \
+  --task "<bounded outcome>" \
+  --allow-path <repo-relative-path> \
+  --check "<deterministic check>"
+```
+
+The topology is finite and visible:
 
 ```text
-Pi · conductor       │ Codex · GPT-5.6 Sol
-─────────────────────┼──────────────────────
-Claude · Opus 5      │ OpenCode · DeepSeek V4 Flash
+Sol-Hi / Pi conductor
+├── Luna 1 / scout   — read-only inventory and risks
+├── Luna 2 / builder — implementation in declared paths
+└── Luna 3 / verifier — independent checks and corrections
 ```
 
-All four default to high effort. Pi conducts from the clean base checkout with
-read/search/shell tools and no direct editing tools. The three workers receive
-separate branches and worktrees. There are no hidden subagents.
+Models are `gpt-5.6-sol` with high thinking for Sol and `gpt-5.6-luna` with
+xhigh reasoning for Luna. OpenCode Go uses DeepSeek V4 Flash at `variant: max`
+when a separate review is useful. No hidden agents are allowed.
 
-OpenCode retains its native permission prompts. If it blocks on access outside
-its worker checkout, Pi should surface the request and wait for a human rather
-than bypassing it.
+## Acceptance
 
-## Install and preflight
+A run is not complete because a pane is idle. Inspect actual branches, changed
+paths, check output, and the private receipt. Finalize evidence before cleanup:
 
 ```bash
-herdr plugin install m-mohamed/sheprd
-herdr plugin action list --plugin m-mohamed.sheprd
-herdr plugin action invoke m-mohamed.sheprd.doctor
+~/workspace/hq/workflows/sol-luna-finalize.sh \
+  --receipt ~/.local/state/sol-luna/<project>/<run>/receipt.json
 ```
 
-The installer fetches an exact-version release archive, checks SHA-256 and
-GitHub provenance, and falls back to a locked source build only when a verified
-prebuilt is unavailable. Herdr does not sandbox plugins; tell the human to
-review the manifest and named scripts.
+Then accept, request one correction, defer, or reject. Never merge or push
+without human approval. Preserve dirty unrelated work.
 
-Doctor verifies Herdr, Git, Pi, Codex, Claude Code, and OpenCode. It does not
-prove that provider billing, model access, or credits are available.
-
-## Open and inspect
-
-```bash
-herdr plugin action invoke m-mohamed.sheprd.open-flok
-herdr plugin action invoke m-mohamed.sheprd.choose-flok
-herdr agent list
-```
-
-A new Flok refuses a dirty base checkout. A matching existing Flok is focused,
-never silently repaired. If structured output says `healthy: false`, explain
-the warnings and inspect the live roster; do not equate focus with readiness.
-
-Use Herdr's normal focus and zoom controls. Sheprd does not replace its UI.
-
-## Coordinate work
-
-Pi should issue explicit packets with a purpose, owned files, expected checks,
-done criteria, and stop conditions. Use current Herdr commands:
-
-```bash
-herdr agent prompt <name> '<self-contained packet>'
-herdr agent wait <name> --until idle --timeout 120000
-herdr agent read <name> --source recent --lines 120 --format text
-```
-
-Before reporting completion, inspect repository state and test receipts. Agent
-messages are claims, not merge proof.
-
-For an explicit receipt-backed run, Pi first creates a typed plan. Then use
-`sheprd factory run` with `--plan-file`, a bounded task, repository-relative
-`--allow-path` values, and `--check` commands. The command preserves rejected
-work and returns trace and receipt paths. It never integrates the worker branch.
-
-## Clean up safely
-
-```bash
-herdr plugin action invoke m-mohamed.sheprd.cleanup-preview
-herdr plugin action invoke m-mohamed.sheprd.cleanup-flok
-```
-
-The second action opens an overlay and requires the project name. Sheprd checks
-that every path belongs to its state root, refuses dirty worktrees, closes the
-workspace first, removes clean checkouts, preserves branches, and archives the
-state JSON. If anything becomes dirty during shutdown, it stops and preserves
-the checkout.
-
-## Troubleshoot by layer
-
-1. **Plugin registration**
-
-   ```bash
-   herdr plugin list
-   herdr plugin action list --plugin m-mohamed.sheprd
-   herdr plugin log list --plugin m-mohamed.sheprd
-   ```
-
-2. **Runtime readiness**
-
-   ```bash
-   herdr status server
-   target/release/sheprd doctor --json
-   ```
-
-3. **Project resolution**
-
-   ```bash
-   target/release/sheprd show-config --json
-   target/release/sheprd list --json
-   ```
-
-4. **Flok state and live roster**
-
-   ```bash
-   target/release/sheprd flok <project> --json
-   herdr workspace list
-   herdr pane list
-   herdr agent list
-   ```
-
-The structured Flok result contains workspace and pane IDs, agent names,
-models, branches, worktree paths, state path, health, and warnings. Herdr IDs
-are live values. Do not guess or persist them in dotfiles.
-
-Sheprd uses `HERDR_BIN_PATH` and Herdr CLI wrappers. Raw socket code is only
-appropriate for a future long-lived event subscriber or custom client that the
-CLI cannot express.
+Retired peer-agent and legacy fleet integrations must not be documented,
+invoked, or restored.
